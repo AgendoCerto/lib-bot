@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"lib-bot/adapter"
 	"lib-bot/adapter/whatsapp"
@@ -20,6 +22,7 @@ func main() {
 	// Configuração de flags de linha de comando
 	in := flag.String("in", "", "Caminho do arquivo Design JSON (opcional; usa exemplo se vazio)")
 	out := flag.String("out", "plan", "Tipo de saída: plan | reactflow | reactflow-auto-v | reactflow-auto-h")
+	outFile := flag.String("outfile", "", "Arquivo de saída (opcional; se vazio, imprime no stdout)")
 	adapterName := flag.String("adapter", "whatsapp", "Adapter: whatsapp (por enquanto)")
 	pretty := flag.Bool("pretty", true, "Imprimir JSON com identação")
 	flag.Parse()
@@ -43,23 +46,29 @@ func main() {
 	// 3) Adapter real (usa a interface adapter.Adapter)
 	a := selectAdapter(*adapterName)
 
-	// 4) Processa saída conforme tipo solicitado
+	// 4) Gera nome do arquivo de saída se não especificado
+	finalOutFile := *outFile
+	if finalOutFile == "" && *in != "" && *out != "plan" {
+		finalOutFile = generateOutputFileName(*in, *out)
+	}
+
+	// 5) Processa saída conforme tipo solicitado
 	switch *out {
 	case "plan":
-		doPlan(design, reg, a, *pretty)
+		doPlan(design, reg, a, *pretty, finalOutFile)
 	case "reactflow":
-		doReactFlow(design, *pretty)
+		doReactFlow(design, *pretty, finalOutFile)
 	case "reactflow-auto-v":
-		doReactFlowAutoVertical(design, *pretty)
+		doReactFlowAutoVertical(design, *pretty, finalOutFile)
 	case "reactflow-auto-h":
-		doReactFlowAutoHorizontal(design, *pretty)
+		doReactFlowAutoHorizontal(design, *pretty, finalOutFile)
 	default:
 		log.Fatalf("valor inválido para -out: %q (use: plan | reactflow | reactflow-auto-v | reactflow-auto-h)", *out)
 	}
 }
 
 // doPlan compila o design em um plano de execução usando o adapter especificado
-func doPlan(design io.DesignDoc, reg *component.Registry, a adapter.Adapter, pretty bool) {
+func doPlan(design io.DesignDoc, reg *component.Registry, a adapter.Adapter, pretty bool, outFile string) {
 	comp := compile.DefaultCompiler{}
 	plan, checksum, issues, err := comp.Compile(context.Background(), design, reg, a)
 	must(err)
@@ -73,22 +82,22 @@ func doPlan(design io.DesignDoc, reg *component.Registry, a adapter.Adapter, pre
 		}
 	}
 
-	// Plano em stdout
-	printJSON(plan, pretty)
+	// Plano em stdout ou arquivo
+	writeJSON(plan, pretty, outFile)
 }
 
 // doReactFlow converte o design para formato React Flow
-func doReactFlow(design io.DesignDoc, pretty bool) {
+func doReactFlow(design io.DesignDoc, pretty bool, outFile string) {
 	nodes, edges := rf.DesignToReactFlow(design)
 	payload := map[string]any{
 		"nodes": nodes,
 		"edges": edges,
 	}
-	printJSON(payload, pretty)
+	writeJSON(payload, pretty, outFile)
 }
 
 // doReactFlowAutoVertical converte para React Flow com auto-layout vertical
-func doReactFlowAutoVertical(design io.DesignDoc, pretty bool) {
+func doReactFlowAutoVertical(design io.DesignDoc, pretty bool, outFile string) {
 	nodes, edges := rf.ApplyAutoLayoutVertical(design)
 	payload := map[string]any{
 		"nodes": nodes,
@@ -98,11 +107,11 @@ func doReactFlowAutoVertical(design io.DesignDoc, pretty bool) {
 			"applied":   true,
 		},
 	}
-	printJSON(payload, pretty)
+	writeJSON(payload, pretty, outFile)
 }
 
 // doReactFlowAutoHorizontal converte para React Flow com auto-layout horizontal
-func doReactFlowAutoHorizontal(design io.DesignDoc, pretty bool) {
+func doReactFlowAutoHorizontal(design io.DesignDoc, pretty bool, outFile string) {
 	nodes, edges := rf.ApplyAutoLayoutHorizontal(design)
 	payload := map[string]any{
 		"nodes": nodes,
@@ -112,10 +121,28 @@ func doReactFlowAutoHorizontal(design io.DesignDoc, pretty bool) {
 			"applied":   true,
 		},
 	}
-	printJSON(payload, pretty)
+	writeJSON(payload, pretty, outFile)
 }
 
-func printJSON(v any, pretty bool) {
+// generateOutputFileName gera o nome do arquivo de saída baseado no arquivo de entrada
+func generateOutputFileName(inputFile, outputType string) string {
+	// Remove extensão do arquivo de entrada
+	base := strings.TrimSuffix(inputFile, filepath.Ext(inputFile))
+	
+	switch outputType {
+	case "reactflow":
+		return base + "-reactflow.json"
+	case "reactflow-auto-v":
+		return base + "-reactflow-vertical.json"
+	case "reactflow-auto-h":
+		return base + "-reactflow-horizontal.json"
+	default:
+		return base + "-" + outputType + ".json"
+	}
+}
+
+// writeJSON escreve JSON para arquivo ou stdout
+func writeJSON(v any, pretty bool, outFile string) {
 	var b []byte
 	var err error
 	if pretty {
@@ -124,7 +151,16 @@ func printJSON(v any, pretty bool) {
 		b, err = json.Marshal(v)
 	}
 	must(err)
-	fmt.Println(string(b))
+
+	if outFile != "" {
+		// Escreve para arquivo
+		err = os.WriteFile(outFile, b, 0644)
+		must(err)
+		fmt.Fprintf(os.Stderr, "Arquivo gerado: %s\n", outFile)
+	} else {
+		// Escreve para stdout
+		fmt.Println(string(b))
+	}
 }
 
 func must(err error) {

@@ -510,13 +510,19 @@
         "final": false,
         "kind": "message",
         "props": {
-          "fallback": {
-            "max_attempts": 2,
-            "text": "Olá! Bem-vindo à {{props.clinica_nome}}! 🏥",
-            "timeout": 30
+          "delay": {
+            "after": 2000,
+            "reason": "Simular digitação",
+            "show_typing": true
           },
           "hsm": {
             "name": "welcome_clinic_template"
+          },
+          "timeout": {
+            "action": "retry",
+            "duration": 30,
+            "max_attempts": 2,
+            "message": "Olá! Bem-vindo à {{props.clinica_nome}}! 🏥"
           }
         },
         "title": "Boas-vindas HSM"
@@ -527,31 +533,6 @@
       },
       "width": 280,
       "height": 80,
-      "draggable": true,
-      "selectable": true,
-      "deletable": true,
-      "sourcePosition": "right",
-      "targetPosition": "left"
-    },
-    {
-      "id": "delay_inicial",
-      "type": "delay",
-      "data": {
-        "final": false,
-        "kind": "delay",
-        "props": {
-          "duration": 2000,
-          "reason": "Simular digitação",
-          "unit": "milliseconds"
-        },
-        "title": "Delay Inicial"
-      },
-      "position": {
-        "x": 100,
-        "y": 220
-      },
-      "width": 200,
-      "height": 60,
       "draggable": true,
       "selectable": true,
       "deletable": true,
@@ -571,19 +552,20 @@
             "max_height": 1080,
             "max_width": 1920
           },
-          "fallback": {
-            "reason": "Falha no carregamento da imagem",
-            "text": "🏥 Bem-vindo à {{props.clinica_nome}}!\n\nEstamos aqui para cuidar da sua saúde com excelência."
-          },
           "size_limit": "5MB",
           "type": "image",
-          "url": "https://example.com/images/clinica-fachada.jpg"
+          "url": "https://example.com/images/clinica-fachada.jpg",
+          "validation": {
+            "fallback_text": "🏥 Bem-vindo à {{props.clinica_nome}}!\n\nEstamos aqui para cuidar da sua saúde com excelência.",
+            "max_attempts": 2,
+            "on_invalid": "retry"
+          }
         },
         "title": "Imagem da Clínica"
       },
       "position": {
         "x": 100,
-        "y": 320
+        "y": 220
       },
       "width": 300,
       "height": 120,
@@ -623,20 +605,25 @@
               "position": 3
             }
           ],
-          "fallback": {
-            "max_attempts": 2,
-            "text": "Digite:\n1️⃣ Para agendar consulta\n2️⃣ Para ver agendamentos\n3️⃣ Para conhecer planos",
-            "timeout": 60
-          },
           "footer": "Responda em até 5 minutos",
           "header": "Menu de Atendimento",
-          "text": "Olá! 👋\n\nComo posso ajudá-lo hoje?\n\n📋 Escolha uma das opções abaixo:"
+          "text": "Olá! 👋\n\nComo posso ajudá-lo hoje?\n\n📋 Escolha uma das opções abaixo:",
+          "timeout": {
+            "action": "retry",
+            "duration": 60,
+            "max_attempts": 2
+          },
+          "validation": {
+            "fallback_text": "Digite:\n1️⃣ Para agendar consulta\n2️⃣ Para ver agendamentos\n3️⃣ Para conhecer planos",
+            "max_attempts": 2,
+            "on_invalid": "retry"
+          }
         },
         "title": "Menu Principal"
       },
       "position": {
         "x": 100,
-        "y": 480
+        "y": 380
       },
       "width": 350,
       "height": 200,
