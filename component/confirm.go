@@ -11,7 +11,6 @@ type Confirm struct {
 	title string
 	yes   string
 	no    string
-	hsm   *HSMView
 	det   liquid.Detector
 }
 
@@ -22,29 +21,8 @@ func (c *Confirm) WithText(title, yes, no string) *Confirm {
 	cp.title, cp.yes, cp.no = title, yes, no
 	return &cp
 }
-func (c *Confirm) WithHSM(h *HSMView) *Confirm { cp := *c; cp.hsm = h; return &cp }
 
 func (c *Confirm) Spec(ctx context.Context, _ runtime.Context) (ComponentSpec, error) {
-	if c.hsm != nil {
-		for i := range c.hsm.Params {
-			meta, err := c.det.Parse(ctx, c.hsm.Params[i].Raw)
-			if err != nil {
-				return ComponentSpec{}, err
-			}
-			c.hsm.Params[i].Template = meta.IsTemplate
-			c.hsm.Params[i].Liquid = meta
-		}
-		for i := range c.hsm.Buttons {
-			meta, err := c.det.Parse(ctx, c.hsm.Buttons[i].Label.Raw)
-			if err != nil {
-				return ComponentSpec{}, err
-			}
-			c.hsm.Buttons[i].Label.Template = meta.IsTemplate
-			c.hsm.Buttons[i].Label.Liquid = meta
-		}
-		return ComponentSpec{Kind: "confirm", HSM: c.hsm}, nil
-	}
-
 	mt, err := c.det.Parse(ctx, c.title)
 	if err != nil {
 		return ComponentSpec{}, err
@@ -80,10 +58,6 @@ func (f *ConfirmFactory) New(_ string, props map[string]any) (Component, error) 
 		yes, _ := props["positive"].(string)
 		no, _ := props["negative"].(string)
 		c = c.WithText(title, yes, no)
-	}
-	if raw, ok := props["hsm_ref"].(map[string]any); ok && raw != nil {
-		h := decodeHSM(raw)
-		c = c.WithHSM(h)
 	}
 	return c, nil
 }

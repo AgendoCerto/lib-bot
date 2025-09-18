@@ -26,20 +26,8 @@ func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, 
 		}
 	}
 	if spec.HSM != nil {
-		for i := range spec.HSM.Params {
-			if spec.HSM.Params[i].Template {
-				for _, is := range s.Linter.Lint(spec.HSM.Params[i].Liquid, s.Policy, path+".view.hsm.params") {
-					issues = append(issues, Issue{Code: is.Code, Severity: toSev(is.Severity), Path: is.Path, Msg: is.Msg})
-				}
-			}
-		}
-		for i := range spec.HSM.Buttons {
-			if spec.HSM.Buttons[i].Label.Template {
-				for _, is := range s.Linter.Lint(spec.HSM.Buttons[i].Label.Liquid, s.Policy, path+".view.hsm.buttons") {
-					issues = append(issues, Issue{Code: is.Code, Severity: toSev(is.Severity), Path: is.Path, Msg: is.Msg})
-				}
-			}
-		}
+		// HSM simplificado não tem parâmetros ou botões complexos para validar
+		// A validação do nome já é feita no HSMValidationStep
 	}
 	return issues
 }

@@ -82,16 +82,26 @@ func (DefaultCompiler) Compile(ctx context.Context, design io.DesignDoc, reg *co
 		},
 	}
 
+	// Validações sobre topologia do design primeiro
+	topologyValidator := validate.NewTopologyValidator()
+	topologyIssues := topologyValidator.ValidateDesign(design)
+
 	// Validações sobre specs (sem render)
 	p := validate.NewPipeline(
 		validate.AdapterSupportStep{},
 		validate.SizeStep{},
-		// LiquidStep pode ser adicionado aqui se quiser validar filtros/whitelist:
-		// validate.LiquidStep{Policy: liquid.Policy{AllowedFilters: map[string]bool{"default":true}}},
+		validate.LiquidStep{
+			Policy: liquid.DefaultLiquidPolicy(),
+			Linter: liquid.SimpleLinter{},
+		},
+		validate.NewHSMValidationStep(), // HSM simplificado sem catálogo
 	)
-	issues := p.Run(specs, a.Capabilities(), "$")
+	specIssues := p.Run(specs, a.Capabilities(), "$")
 
-	return plan, plan.DesignChecksum, issues, nil
+	// Combina todas as issues
+	allIssues := append(topologyIssues, specIssues...)
+
+	return plan, plan.DesignChecksum, allIssues, nil
 }
 
 // dumbSHA256Hex: placeholder barato (sem crypto/sha256 para zero deps).

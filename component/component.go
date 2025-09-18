@@ -4,6 +4,7 @@ package component
 import (
 	"context"
 
+	"lib-bot/hsm"
 	"lib-bot/liquid"
 	"lib-bot/runtime"
 )
@@ -34,12 +35,12 @@ type Button struct {
 
 // ComponentSpec é o modelo canônico de um componente (sem renderização final)
 type ComponentSpec struct {
-	Kind     string         `json:"kind"`                // Tipo do componente (message, confirm, etc.)
-	Text     *TextValue     `json:"text,omitempty"`      // Texto principal
-	MediaURL string         `json:"media_url,omitempty"` // URL de mídia (imagem, vídeo, etc.)
-	Buttons  []Button       `json:"buttons,omitempty"`   // Botões interativos
-	HSM      *HSMView       `json:"hsm,omitempty"`       // Configuração de HSM
-	Meta     map[string]any `json:"meta,omitempty"`      // Metadados adicionais
+	Kind     string           `json:"kind"`                // Tipo do componente (message, confirm, etc.)
+	Text     *TextValue       `json:"text,omitempty"`      // Texto principal
+	MediaURL string           `json:"media_url,omitempty"` // URL de mídia (imagem, vídeo, etc.)
+	Buttons  []Button         `json:"buttons,omitempty"`   // Botões interativos
+	HSM      *hsm.HSMTemplate `json:"hsm,omitempty"`       // Configuração de HSM simplificado
+	Meta     map[string]any   `json:"meta,omitempty"`      // Metadados adicionais
 }
 
 // Component interface para geração de specs canônicos (apenas parsing, sem render)
