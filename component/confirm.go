@@ -55,8 +55,15 @@ func NewConfirmFactory(det liquid.Detector) *ConfirmFactory { return &ConfirmFac
 func (f *ConfirmFactory) New(_ string, props map[string]any) (Component, error) {
 	c := NewConfirm(f.det)
 	if title, _ := props["title"].(string); title != "" {
-		yes, _ := props["positive"].(string)
-		no, _ := props["negative"].(string)
+		// Aceita tanto yes/no quanto positive/negative
+		yes, _ := props["yes"].(string)
+		if yes == "" {
+			yes, _ = props["positive"].(string)
+		}
+		no, _ := props["no"].(string)
+		if no == "" {
+			no, _ = props["negative"].(string)
+		}
 		c = c.WithText(title, yes, no)
 	}
 	return c, nil
