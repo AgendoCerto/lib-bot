@@ -47,12 +47,20 @@ func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
 			Position: pos,
 		}
 
-		// Adiciona dimensões se disponíveis
+		// Adiciona dimensões se disponíveis, senão usa dimensões padrão
 		if n.Width != nil {
 			node.Width = n.Width
+		} else {
+			// Usa dimensões padrão baseadas no tipo do componente
+			width, _ := layout.GetNodeDimensions(n.Kind)
+			node.Width = &width
 		}
 		if n.Height != nil {
 			node.Height = n.Height
+		} else {
+			// Usa dimensões padrão baseadas no tipo do componente
+			_, height := layout.GetNodeDimensions(n.Kind)
+			node.Height = &height
 		}
 
 		nodes = append(nodes, node)

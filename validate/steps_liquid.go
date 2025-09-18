@@ -11,6 +11,18 @@ type LiquidStep struct {
 	Linter liquid.Linter
 }
 
+// NewLiquidStep cria um novo validador de templates Liquid
+func NewLiquidStep() *LiquidStep {
+	return &LiquidStep{
+		Policy: liquid.Policy{
+			StrictVars:     true,
+			AllowedFilters: map[string]bool{"upcase": true, "downcase": true, "capitalize": true},
+			MaxDepth:       5,
+		},
+		Linter: liquid.SimpleLinter{},
+	}
+}
+
 func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, path string) []Issue {
 	var issues []Issue
 	if spec.Text != nil && spec.Text.Template {

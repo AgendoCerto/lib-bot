@@ -1,4 +1,3 @@
-// CLI para conversão de designs em planos de execução ou formato React Flow
 package main
 
 import (
@@ -14,7 +13,6 @@ import (
 	"lib-bot/compile"
 	"lib-bot/component"
 	"lib-bot/io"
-	"lib-bot/liquid"
 	rf "lib-bot/reactflow"
 )
 
@@ -40,14 +38,7 @@ func main() {
 	must(err)
 
 	// 2) Registry de componentes (parse-only do Liquid; sem render)
-	reg := component.NewRegistry()
-	det := liquid.NoRenderDetector{}
-	reg.Register("message", component.NewMessageFactory(det))
-	reg.Register("confirm", component.NewConfirmFactory(det))
-	reg.Register("buttons", component.NewButtonsFactory(det))
-	reg.Register("listpicker", component.NewListPickerFactory(det))
-	reg.Register("media", component.NewMediaFactory(det))
-	reg.Register("carousel", component.NewCarouselFactory(det))
+	reg := component.DefaultRegistry()
 
 	// 3) Adapter real (usa a interface adapter.Adapter)
 	a := selectAdapter(*adapterName)

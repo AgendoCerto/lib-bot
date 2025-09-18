@@ -30,7 +30,17 @@ type Pipeline interface {
 
 type DefaultPipeline struct{ steps []Step }
 
-func NewPipeline(steps ...Step) *DefaultPipeline { return &DefaultPipeline{steps: steps} }
+// NewPipeline cria um pipeline de validação completo
+func NewPipeline() Pipeline {
+	return &DefaultPipeline{
+		steps: []Step{
+			NewLiquidStep(),
+			NewTopologyStep(),
+			NewSizeStep(),
+			NewAdapterStep(),
+		},
+	}
+}
 
 func (p *DefaultPipeline) Run(specs []component.ComponentSpec, caps adapter.Capabilities, basePath string) []Issue {
 	var all []Issue

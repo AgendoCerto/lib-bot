@@ -7,6 +7,11 @@ import (
 
 type AdapterSupportStep struct{}
 
+// NewAdapterStep cria um novo validador de suporte do adapter
+func NewAdapterStep() *AdapterSupportStep {
+	return &AdapterSupportStep{}
+}
+
 func (AdapterSupportStep) Check(spec component.ComponentSpec, caps adapter.Capabilities, path string) []Issue {
 	var issues []Issue
 	// Exemplo: HSM sem suporte

@@ -7,6 +7,11 @@ import (
 
 type SizeStep struct{}
 
+// NewSizeStep cria um novo validador de tamanho
+func NewSizeStep() *SizeStep {
+	return &SizeStep{}
+}
+
 func (SizeStep) Check(spec component.ComponentSpec, caps adapter.Capabilities, path string) []Issue {
 	var issues []Issue
 	// Se NÃO é template, podemos checar tamanho estático.

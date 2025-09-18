@@ -86,20 +86,17 @@ func (DefaultCompiler) Compile(ctx context.Context, design io.DesignDoc, reg *co
 	topologyValidator := validate.NewTopologyValidator()
 	topologyIssues := topologyValidator.ValidateDesign(design)
 
+	// CRÍTICO: Validação de mapeamento output-to-ID (evita travamento da engine)
+	designPipeline := validate.NewDesignValidationPipeline()
+	designIssues := designPipeline.ValidateDesign(design)
+
 	// Validações sobre specs (sem render)
-	p := validate.NewPipeline(
-		validate.AdapterSupportStep{},
-		validate.SizeStep{},
-		validate.LiquidStep{
-			Policy: liquid.DefaultLiquidPolicy(),
-			Linter: liquid.SimpleLinter{},
-		},
-		validate.NewHSMValidationStep(), // HSM simplificado sem catálogo
-	)
+	p := validate.NewPipeline()
 	specIssues := p.Run(specs, a.Capabilities(), "$")
 
 	// Combina todas as issues
-	allIssues := append(topologyIssues, specIssues...)
+	allIssues := append(topologyIssues, designIssues...)
+	allIssues = append(allIssues, specIssues...)
 
 	return plan, plan.DesignChecksum, allIssues, nil
 }

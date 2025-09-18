@@ -18,15 +18,19 @@ type Node struct {
 	// Dimensões para auto-layout
 	Width  *float64 `json:"width,omitempty"`  // Largura do nó (pixels)
 	Height *float64 `json:"height,omitempty"` // Altura do nó (pixels)
+	// Entradas e saídas padronizadas
+	Inputs  []string `json:"inputs,omitempty"`  // Tipos de entrada aceitos
+	Outputs []string `json:"outputs,omitempty"` // Tipos de saída produzidos
 }
 
-// Edge representa uma conexão entre dois nós
+// Edge representa uma aresta no grafo (transição entre nós)
 type Edge struct {
-	From     ID     `json:"from"`            // ID do nó de origem
-	To       ID     `json:"to"`              // ID do nó de destino
-	Label    string `json:"label"`           // Rótulo da transição
-	Priority int    `json:"priority"`        // Prioridade para ordenação de transições
-	Guard    string `json:"guard,omitempty"` // Condição para ativação da transição
+	From     ID             `json:"from"`               // ID do nó de origem
+	To       ID             `json:"to"`                 // ID do nó de destino
+	Label    string         `json:"label,omitempty"`    // Rótulo da aresta
+	Guard    string         `json:"guard,omitempty"`    // Condição para ativação da aresta
+	Priority int            `json:"priority,omitempty"` // Prioridade de avaliação (menor = maior prioridade)
+	Metadata map[string]any `json:"metadata,omitempty"` // Metadados adicionais da transição
 }
 
 // Graph representa o grafo completo do fluxo

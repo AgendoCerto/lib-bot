@@ -1,6 +1,8 @@
 package validate
 
 import (
+	"lib-bot/adapter"
+	"lib-bot/component"
 	"lib-bot/flow"
 	"lib-bot/io"
 )
@@ -290,4 +292,23 @@ func (v *TopologyValidator) validateChannels(bot io.Bot) []Issue {
 	}
 
 	return issues
+}
+
+// TopologyStep implementa Step interface
+type TopologyStep struct {
+	validator *TopologyValidator
+}
+
+// NewTopologyStep cria um novo step de validação de topologia
+func NewTopologyStep() *TopologyStep {
+	return &TopologyStep{
+		validator: NewTopologyValidator(),
+	}
+}
+
+// Check implementa Step interface
+func (s *TopologyStep) Check(spec component.ComponentSpec, caps adapter.Capabilities, path string) []Issue {
+	// Esta interface não se aplica bem à validação de topologia
+	// que precisa do design completo, então retorna vazio
+	return []Issue{}
 }

@@ -39,6 +39,7 @@ func DefaultConfig() Config {
 // NodeDimensions dimensões padrão por tipo de componente
 var DefaultNodeDimensions = map[string]struct{ Width, Height float64 }{
 	"message":    {Width: 250, Height: 80},
+	"text":       {Width: 250, Height: 80},
 	"confirm":    {Width: 280, Height: 100},
 	"buttons":    {Width: 300, Height: 120},
 	"menu":       {Width: 320, Height: 140},

@@ -1,0 +1,781 @@
+{
+  "schema": "flowkit/1.0",
+  "version": {
+    "id": "2.0",
+    "status": "development"
+  },
+  "entries": [
+    {
+      "kind": "global_start",
+      "target": "boas_vindas_hsm"
+    }
+  ],
+  "bot": {
+    "id": "atendimento-clinica-padronizado",
+    "channels": ["whatsapp"]
+  },
+  "props": {
+    "clinica_nome": "Clínica Saúde & Bem-Estar",
+    "horario_funcionamento": "Segunda a Sexta: 8h às 18h",
+    "telefone_emergencia": "+55 11 9999-9999",
+    "timeout_resposta": 300,
+    "max_tentativas_fallback": 3
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "boas_vindas_hsm",
+        "kind": "message",
+        "title": "Boas-vindas HSM",
+        "props": {
+          "hsm": {
+            "name": "welcome_clinic_template"
+          },
+          "fallback": {
+            "text": "Olá! Bem-vindo à {{props.clinica_nome}}! 🏥",
+            "max_attempts": 2,
+            "timeout": 30
+          }
+        },
+        "x": 100,
+        "y": 100,
+        "width": 280,
+        "height": 80,
+        "inputs": [],
+          "outputs": ["complete"]
+      },
+      {
+        "id": "delay_inicial",
+        "kind": "delay",
+        "title": "Delay Inicial",
+        "props": {
+          "duration": 2000,
+          "unit": "milliseconds",
+          "reason": "Simular digitação"
+        },
+        "x": 100,
+        "y": 220,
+        "width": 200,
+        "height": 60,
+        "inputs": ["trigger"],
+        "outputs": ["complete"]
+      },
+      {
+        "id": "apresentacao_imagem",
+        "kind": "media",
+        "title": "Imagem da Clínica",
+        "props": {
+          "type": "image",
+          "url": "https://example.com/images/clinica-fachada.jpg",
+          "caption": "Bem-vindo à {{props.clinica_nome}}! 🏥\n\nEstamos aqui para cuidar da sua saúde com excelência.",
+          "alt_text": "Fachada da Clínica Saúde & Bem-Estar",
+          "fallback": {
+            "text": "🏥 Bem-vindo à {{props.clinica_nome}}!\n\nEstamos aqui para cuidar da sua saúde com excelência.",
+            "reason": "Falha no carregamento da imagem"
+          },
+          "size_limit": "5MB",
+          "dimensions": {
+            "max_width": 1920,
+            "max_height": 1080
+          }
+        },
+        "x": 100,
+        "y": 320,
+        "width": 300,
+        "height": 120,
+        "inputs": ["trigger"],
+        "outputs": ["sent", "failed", "timeout"]
+      },
+      {
+        "id": "menu_principal",
+        "kind": "buttons",
+        "title": "Menu Principal",
+        "props": {
+          "text": "Olá! 👋\n\nComo posso ajudá-lo hoje?\n\n📋 Escolha uma das opções abaixo:",
+          "buttons": [
+            {
+              "id": "btn_agendar",
+              "label": "📅 Agendar",
+              "payload": "agendar",
+              "kind": "reply",
+              "position": 1
+            },
+            {
+              "id": "btn_agendamentos", 
+              "label": "📋 Agendamentos",
+              "payload": "agendamentos",
+              "kind": "reply",
+              "position": 2
+            },
+            {
+              "id": "btn_planos",
+              "label": "🛍️ Planos",
+              "payload": "planos",
+              "kind": "reply",
+              "position": 3
+            }
+          ],
+          "fallback": {
+            "text": "Digite:\n1️⃣ Para agendar consulta\n2️⃣ Para ver agendamentos\n3️⃣ Para conhecer planos",
+            "timeout": 60,
+            "max_attempts": 2
+          },
+          "header": "Menu de Atendimento",
+          "footer": "Responda em até 5 minutos"
+        },
+        "x": 100,
+        "y": 480,
+        "width": 350,
+        "height": 200,
+        "inputs": ["trigger"],
+        "outputs": ["btn_agendar", "btn_agendamentos", "btn_planos", "timeout", "invalid", "fallback"]
+      },
+      {
+        "id": "especialidades_lista",
+        "kind": "listpicker",
+        "title": "Lista de Especialidades",
+        "props": {
+          "text": "📋 Selecione a especialidade para agendar sua consulta:",
+          "button_text": "Ver especialidades",
+          "sections": [
+            {
+              "id": "clinica_geral_section",
+              "title": "🩺 Clínica Geral",
+              "items": [
+                {
+                  "id": "clinico_geral",
+                  "title": "Clínico Geral",
+                  "description": "Consulta geral - 30 min",
+                  "payload": "especialidade:clinico_geral",
+                  "metadata": {
+                    "duracao": 30,
+                    "valor": 120.00,
+                    "disponivel": true
+                  }
+                },
+                {
+                  "id": "checkup",
+                  "title": "Check-up Completo", 
+                  "description": "Avaliação completa - 60 min",
+                  "payload": "especialidade:checkup",
+                  "metadata": {
+                    "duracao": 60,
+                    "valor": 250.00,
+                    "disponivel": true
+                  }
+                }
+              ]
+            },
+            {
+              "id": "especialidades_section",
+              "title": "🦷 Especialidades",
+              "items": [
+                {
+                  "id": "cardiologia",
+                  "title": "Cardiologia",
+                  "description": "Dr. João Silva - 45 min",
+                  "payload": "especialidade:cardiologia",
+                  "metadata": {
+                    "medico": "Dr. João Silva",
+                    "duracao": 45,
+                    "valor": 180.00,
+                    "disponivel": true
+                  }
+                },
+                {
+                  "id": "dermatologia",
+                  "title": "Dermatologia", 
+                  "description": "Dra. Maria Santos - 30 min",
+                  "payload": "especialidade:dermatologia",
+                  "metadata": {
+                    "medico": "Dra. Maria Santos",
+                    "duracao": 30,
+                    "valor": 150.00,
+                    "disponivel": false
+                  }
+                },
+                {
+                  "id": "ortopedia",
+                  "title": "Ortopedia",
+                  "description": "Dr. Pedro Costa - 40 min",
+                  "payload": "especialidade:ortopedia",
+                  "metadata": {
+                    "medico": "Dr. Pedro Costa", 
+                    "duracao": 40,
+                    "valor": 170.00,
+                    "disponivel": true
+                  }
+                }
+              ]
+            }
+          ],
+          "fallback": {
+            "text": "Digite o número da especialidade:\n1. Clínico Geral\n2. Check-up\n3. Cardiologia\n4. Dermatologia\n5. Ortopedia",
+            "parse_mode": "numbered_list",
+            "timeout": 120
+          },
+          "footer": "Escolha uma especialidade",
+          "max_selections": 1
+        },
+        "x": 500,
+        "y": 480,
+        "width": 400,
+        "height": 350,
+        "inputs": ["trigger"],
+        "outputs": ["clinico_geral", "checkup", "cardiologia", "dermatologia", "ortopedia", "timeout", "invalid", "cancelled"]
+      },
+      {
+        "id": "delay_processamento",
+        "kind": "delay",
+        "title": "Processando...",
+        "props": {
+          "duration": 3000,
+          "unit": "milliseconds",
+          "reason": "Verificando disponibilidade",
+          "show_typing": true,
+          "message": "🔄 Verificando disponibilidade..."
+        },
+        "x": 500,
+        "y": 880,
+        "width": 250,
+        "height": 80,
+        "inputs": ["trigger"],
+        "outputs": ["complete"]
+      },
+      {
+        "id": "horarios_lista",
+        "kind": "listpicker",
+        "title": "Seleção de Horários",
+        "props": {
+          "text": "🕐 Horários disponíveis para {{flow.especialidade_selecionada}}:",
+          "button_text": "Ver horários",
+          "sections": [
+            {
+              "id": "manha_section",
+              "title": "🌅 Manhã",
+              "items": [
+                {
+                  "id": "08h00",
+                  "title": "08:00",
+                  "description": "Disponível",
+                  "payload": "horario:08:00"
+                },
+                {
+                  "id": "09h30", 
+                  "title": "09:30",
+                  "description": "Disponível",
+                  "payload": "horario:09:30"
+                },
+                {
+                  "id": "11h00",
+                  "title": "11:00", 
+                  "description": "Ocupado",
+                  "payload": "horario:11:00",
+                  "disabled": true
+                }
+              ]
+            },
+            {
+              "id": "tarde_section",
+              "title": "🌇 Tarde",
+              "items": [
+                {
+                  "id": "14h00",
+                  "title": "14:00",
+                  "description": "Disponível",
+                  "payload": "horario:14:00"
+                },
+                {
+                  "id": "15h30",
+                  "title": "15:30",
+                  "description": "Disponível", 
+                  "payload": "horario:15:30"
+                },
+                {
+                  "id": "17h00",
+                  "title": "17:00",
+                  "description": "Última vaga",
+                  "payload": "horario:17:00"
+                }
+              ]
+            }
+          ],
+          "fallback": {
+            "text": "Digite o horário desejado (formato HH:MM):",
+            "validation": "^(0[8-9]|1[0-1]|1[4-7]):[0-5][0-9]$",
+            "error_message": "Horário inválido. Use formato HH:MM entre 08:00-11:59 ou 14:00-17:59"
+          }
+        },
+        "x": 500,
+        "y": 1000,
+        "width": 380,
+        "height": 300,
+        "inputs": ["trigger"],
+        "outputs": ["08h00", "09h30", "11h00", "14h00", "15h30", "17h00", "timeout", "invalid", "cancelled"]
+      },
+      {
+        "id": "agendamento_confirmacao",
+        "kind": "confirm",
+        "title": "Confirmação de Agendamento",
+        "props": {
+          "title": "📅 Confirmar agendamento?",
+          "description": "Confirme os dados do seu agendamento antes de prosseguir.",
+          "yes": {
+            "text": "✅ Confirmar",
+            "payload": "confirmar_agendamento",
+            "id": "btn_confirmar"
+          },
+          "no": {
+            "text": "❌ Cancelar",
+            "payload": "cancelar_agendamento",
+            "id": "btn_cancelar"
+          },
+          "fallback": {
+            "text": "Digite 'SIM' para confirmar ou 'NÃO' para cancelar:",
+            "yes_keywords": ["sim", "s", "yes", "y", "confirmar", "ok"],
+            "no_keywords": ["não", "nao", "n", "no", "cancelar"]
+          },
+          "timeout": 300,
+          "header": "Confirmação Necessária",
+          "footer": "Responda em até 5 minutos"
+        },
+        "x": 950,
+        "y": 480,
+        "width": 350,
+        "height": 180,
+        "inputs": ["trigger"],
+        "outputs": ["btn_confirmar", "btn_cancelar", "timeout"]
+      },
+      {
+        "id": "delay_processamento_agendamento",
+        "kind": "delay",
+        "title": "Processando Agendamento",
+        "props": {
+          "duration": 5000,
+          "unit": "milliseconds",
+          "reason": "Salvando agendamento no sistema",
+          "show_typing": true,
+          "message": "💾 Salvando seu agendamento..."
+        },
+        "x": 950,
+        "y": 700,
+        "width": 280,
+        "height": 80,
+        "inputs": ["trigger"],
+        "outputs": ["complete"]
+      },
+      {
+        "id": "comprovante_documento",
+        "kind": "media",
+        "title": "Envio de Comprovante",
+        "props": {
+          "type": "document",
+          "url": "https://example.com/docs/comprovante-agendamento.pdf",
+          "caption": "📄 Aqui está seu comprovante de agendamento!\n\n✅ Agendamento confirmado\n📅 Data: {{flow.data_selecionada}}\n🕐 Horário: {{flow.horario_selecionado}}\n🏥 Local: {{props.clinica_nome}}\n\n💡 Chegue 15 minutos antes do horário.",
+          "filename": "comprovante-agendamento-{{user.id}}-{{flow.timestamp}}.pdf",
+          "size_limit": "10MB",
+          "fallback": {
+            "text": "📄 Comprovante de Agendamento\n\n✅ Confirmado para {{flow.data_selecionada}} às {{flow.horario_selecionado}}\n🏥 {{props.clinica_nome}}\n\n📧 Comprovante enviado por email também.",
+            "reason": "Falha no envio do PDF"
+          }
+        },
+        "x": 950,
+        "y": 820,
+        "width": 320,
+        "height": 140,
+        "inputs": ["trigger"],
+          "outputs": ["sent", "failed", "timeout"]
+      },
+      {
+        "id": "carousel_planos",
+        "kind": "carousel",
+        "title": "Carrossel de Planos",
+        "props": {
+          "text": "🛍️ Conheça nossos planos e serviços especiais:",
+          "cards": [
+            {
+              "id": "plano_basico",
+              "title": "Plano Básico",
+              "description": "Consultas mensais + exames básicos\n\n✅ 2 consultas/mês\n✅ Exames laboratoriais\n✅ Desconto em medicamentos",
+              "media_url": "https://example.com/images/plano-basico.jpg",
+              "price": "R$ 89,90/mês",
+              "buttons": [
+                {
+                  "id": "contratar_basico",
+                  "label": "💰 Contratar",
+                  "payload": "contratar:basico",
+                  "kind": "reply"
+                },
+                {
+                  "id": "info_basico",
+                  "label": "ℹ️ Saiba mais",
+                  "payload": "info:basico", 
+                  "kind": "reply"
+                }
+              ],
+              "metadata": {
+                "consultas_mes": 2,
+                "categoria": "basico",
+                "promocao": false
+              }
+            },
+            {
+              "id": "plano_premium",
+              "title": "Plano Premium",
+              "description": "Consultas ilimitadas + exames + especialistas\n\n✅ Consultas ilimitadas\n✅ Todos os exames\n✅ Especialistas inclusos\n✅ Telemedicina",
+              "media_url": "https://example.com/images/plano-premium.jpg",
+              "price": "R$ 159,90/mês",
+              "buttons": [
+                {
+                  "id": "contratar_premium",
+                  "label": "💎 Contratar",
+                  "payload": "contratar:premium",
+                  "kind": "reply"
+                },
+                {
+                  "id": "beneficios_premium",
+                  "label": "📋 Benefícios",
+                  "payload": "beneficios:premium",
+                  "kind": "reply"
+                }
+              ],
+              "metadata": {
+                "consultas_mes": -1,
+                "categoria": "premium", 
+                "promocao": true,
+                "desconto": 20
+              }
+            }
+          ],
+          "fallback": {
+            "text": "📋 Nossos Planos:\n\n1️⃣ Básico - R$ 89,90/mês\n2️⃣ Premium - R$ 159,90/mês\n\nDigite o número do plano de interesse:",
+            "parse_mode": "numbered_list"
+          },
+          "layout": "horizontal",
+          "max_cards_display": 3
+        },
+        "x": 100,
+        "y": 720,
+        "width": 450,
+        "height": 300,
+        "inputs": ["trigger"],
+        "outputs": ["contratar_basico", "info_basico", "contratar_premium", "beneficios_premium", "timeout", "invalid"]
+      },
+      {
+        "id": "meus_agendamentos",
+        "kind": "message",
+        "title": "Meus Agendamentos",
+        "props": {
+          "text": "📋 Seus agendamentos, {{user.name}}:\n\n{{#each user.agendamentos}}\n📅 {{data}} às {{horario}}\n🩺 {{especialidade}}\n👨‍⚕️ {{medico}}\n📍 {{local}}\n{{#if status}}⚠️ Status: {{status}}{{/if}}\n{{#unless @last}}---{{/unless}}\n{{/each}}\n\n💡 Para remarcar ou cancelar, entre em contato: {{props.telefone_emergencia}}",
+          "fallback": {
+            "text": "📋 Você não possui agendamentos no momento.\n\n📅 Gostaria de agendar uma consulta?",
+            "condition": "user.agendamentos.length == 0"
+          },
+          "parse_mode": "markdown"
+        },
+        "x": 100,
+        "y": 1080,
+        "width": 380,
+        "height": 120,
+        "inputs": ["trigger"],
+          "outputs": ["complete"]
+      },
+      {
+        "id": "informacoes_clinica",
+        "kind": "buttons",
+        "title": "Informações da Clínica", 
+        "props": {
+          "text": "ℹ️ {{props.clinica_nome}}\n\n🕐 Horário de funcionamento:\n{{props.horario_funcionamento}}\n\n📞 Contato de emergência:\n{{props.telefone_emergencia}}\n\n📍 Endereço:\nAv. Saúde, 123 - Centro\nSão Paulo - SP\nCEP: 01234-567\n\nO que você gostaria de saber?",
+          "buttons": [
+            {
+              "id": "btn_localizacao",
+              "label": "📍 Como chegar",
+              "payload": "localizacao",
+              "kind": "reply",
+              "position": 1
+            },
+            {
+              "id": "btn_site",
+              "label": "🌐 Site",
+              "kind": "url",
+              "url": "https://clinicasaude.com.br",
+              "position": 2
+            },
+            {
+              "id": "btn_ligar",
+              "label": "📞 Ligar agora",
+              "kind": "call",
+              "payload": "+5511999999999",
+              "position": 3
+            }
+          ],
+          "header": "Informações Gerais",
+          "footer": "Estamos aqui para ajudar",
+          "fallback": {
+            "text": "Digite:\n1️⃣ Para localização\n2️⃣ Para visitar o site\n3️⃣ Para ligar diretamente"
+          }
+        },
+        "x": 600,
+        "y": 1080,
+        "width": 350,
+        "height": 180,
+        "inputs": ["trigger"],
+        "outputs": ["btn_localizacao", "btn_site", "btn_ligar", "timeout", "invalid", "fallback"]
+      },
+      {
+        "id": "timeout_handler",
+        "kind": "message",
+        "title": "Tratamento de Timeout",
+        "props": {
+          "text": "⏰ Parece que você ficou um tempo sem responder.\n\n🔄 Gostaria de:\n• Continuar de onde parou\n• Voltar ao menu principal\n• Falar com atendente\n\nDigite sua escolha ou aguarde para falar com um humano.",
+          "parse_mode": "markdown",
+          "auto_trigger": {
+            "condition": "timeout",
+            "delay": 300000
+          }
+        },
+        "x": 1400,
+        "y": 300,
+        "width": 320,
+        "height": 120,
+        "inputs": ["timeout"],
+          "outputs": ["complete"]
+      },
+      {
+        "id": "fallback_handler",
+        "kind": "message",
+        "title": "Tratamento de Fallback",
+        "props": {
+          "text": "🤖 Desculpe, não entendi sua resposta.\n\n💡 Algumas dicas:\n• Use os botões quando disponíveis\n• Digite números para opções\n• Seja claro e objetivo\n\n🔄 Vamos tentar novamente?",
+          "fallback_count": "{{flow.fallback_attempts | default: 0}}",
+          "max_attempts": 3,
+          "escalation": {
+            "trigger_at": 3,
+            "action": "transfer_human",
+            "message": "Transferindo para atendimento humano..."
+          }
+        },
+        "x": 1400,
+        "y": 480,
+        "width": 320,
+        "height": 140,
+        "inputs": ["fallback"],
+          "outputs": ["complete"]
+      },
+      {
+        "id": "finalizar_atendimento",
+        "kind": "message",
+        "title": "Finalização",
+        "props": {
+          "text": "Obrigado por escolher a {{props.clinica_nome}}! 🙏\n\n⭐ Avalie nosso atendimento:\nSua opinião é muito importante!\n\n💙 Cuide bem da sua saúde!\n\n---\n🤖 Atendimento automático encerrado\n📞 Para emergências: {{props.telefone_emergencia}}",
+          "parse_mode": "markdown",
+          "rating": {
+            "enabled": true,
+            "scale": "1-5",
+            "question": "Como você avalia nosso atendimento?"
+          }
+        },
+        "x": 1400,
+        "y": 660,
+        "width": 320,
+        "height": 140,
+        "final": true,
+        "inputs": ["trigger"],
+          "outputs": ["complete"]
+      }
+    ],
+    "edges": [
+      {
+        "from": "boas_vindas_hsm",
+        "to": "delay_inicial",
+        "label": "success",
+        "guard": "flow.hsm_sent == true",
+        "priority": 1
+      },
+      {
+        "from": "boas_vindas_hsm",
+        "to": "apresentacao_imagem",
+        "label": "fallback",
+        "guard": "flow.hsm_sent == false",
+        "priority": 2
+      },
+      {
+        "from": "boas_vindas_hsm",
+        "to": "timeout_handler",
+        "label": "timeout",
+        "guard": "flow.timeout == true",
+        "priority": 3
+      },
+      {
+        "from": "delay_inicial",
+        "to": "apresentacao_imagem",
+        "label": "complete"
+      },
+      {
+        "from": "apresentacao_imagem",
+        "to": "menu_principal",
+        "label": "sent",
+        "guard": "flow.media_sent == true"
+      },
+      {
+        "from": "apresentacao_imagem",
+        "to": "menu_principal",
+        "label": "failed",
+        "guard": "flow.media_sent == false"
+      },
+      {
+        "from": "menu_principal",
+        "to": "especialidades_lista",
+        "label": "btn_agendar",
+        "guard": "payload == 'agendar'"
+      },
+      {
+        "from": "menu_principal",
+        "to": "meus_agendamentos", 
+        "label": "btn_agendamentos",
+        "guard": "payload == 'agendamentos'"
+      },
+      {
+        "from": "menu_principal",
+        "to": "carousel_planos",
+        "label": "btn_planos",
+        "guard": "payload == 'planos'"
+      },
+      {
+        "from": "menu_principal",
+        "to": "timeout_handler",
+        "label": "timeout",
+        "guard": "flow.timeout == true"
+      },
+      {
+        "from": "menu_principal",
+        "to": "fallback_handler",
+        "label": "invalid",
+        "guard": "flow.invalid_input == true"
+      },
+      {
+        "from": "especialidades_lista",
+        "to": "delay_processamento",
+        "label": "especialidade_selected",
+        "guard": "flow.especialidade_selected == true"
+      },
+      {
+        "from": "especialidades_lista",
+        "to": "timeout_handler",
+        "label": "timeout"
+      },
+      {
+        "from": "especialidades_lista",
+        "to": "fallback_handler",
+        "label": "invalid"
+      },
+      {
+        "from": "delay_processamento",
+        "to": "horarios_lista",
+        "label": "complete"
+      },
+      {
+        "from": "horarios_lista",
+        "to": "agendamento_confirmacao",
+        "label": "horario_selected",
+        "guard": "flow.horario_selected == true"
+      },
+      {
+        "from": "horarios_lista",
+        "to": "timeout_handler",
+        "label": "timeout"
+      },
+      {
+        "from": "agendamento_confirmacao",
+        "to": "delay_processamento_agendamento",
+        "label": "btn_confirmar",
+        "guard": "payload == 'confirmar_agendamento'"
+      },
+      {
+        "from": "agendamento_confirmacao",
+        "to": "menu_principal",
+        "label": "btn_cancelar",
+        "guard": "payload == 'cancelar_agendamento'"
+      },
+      {
+        "from": "agendamento_confirmacao",
+        "to": "timeout_handler",
+        "label": "timeout"
+      },
+      {
+        "from": "delay_processamento_agendamento",
+        "to": "comprovante_documento",
+        "label": "complete"
+      },
+      {
+        "from": "comprovante_documento",
+        "to": "finalizar_atendimento",
+        "label": "sent"
+      },
+      {
+        "from": "comprovante_documento",
+        "to": "finalizar_atendimento",
+        "label": "failed"
+      },
+      {
+        "from": "carousel_planos",
+        "to": "finalizar_atendimento",
+        "label": "plano_selected"
+      },
+      {
+        "from": "carousel_planos",
+        "to": "timeout_handler",
+        "label": "timeout"
+      },
+      {
+        "from": "meus_agendamentos",
+        "to": "finalizar_atendimento",
+        "label": "complete"
+      },
+      {
+        "from": "informacoes_clinica",
+        "to": "finalizar_atendimento",
+        "label": "btn_localizacao"
+      },
+      {
+        "from": "informacoes_clinica",
+        "to": "finalizar_atendimento",
+        "label": "btn_site"
+      },
+      {
+        "from": "informacoes_clinica",
+        "to": "finalizar_atendimento",
+        "label": "btn_ligar"
+      },
+      {
+        "from": "timeout_handler",
+        "to": "menu_principal",
+        "label": "menu",
+        "guard": "payload == 'menu'"
+      },
+      {
+        "from": "timeout_handler",
+        "to": "finalizar_atendimento",
+        "label": "human",
+        "guard": "payload == 'human'"
+      },
+      {
+        "from": "timeout_handler",
+        "to": "finalizar_atendimento",
+        "label": "timeout_final"
+      },
+      {
+        "from": "fallback_handler",
+        "to": "menu_principal",
+        "label": "retry",
+        "guard": "flow.fallback_attempts < 3"
+      },
+      {
+        "from": "fallback_handler",
+        "to": "finalizar_atendimento",
+        "label": "escalate",
+        "guard": "flow.fallback_attempts >= 3"
+      }
+    ]
+  }
+}
