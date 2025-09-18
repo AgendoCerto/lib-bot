@@ -113,7 +113,88 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 		}
 	}
 
-	nodes = make([]Node, 0, len(d.Graph.Nodes))
+	// Adiciona nós de entrada especiais baseado nos entries
+	startNodeCount := 0
+	for _, entry := range d.Entries {
+		if entry.Kind == flow.EntryGlobalStart {
+			startNodeCount++
+
+			// Cria nó de entrada visual
+			startNodeID := "__start_global"
+
+			// Posição inicial do nó de entrada
+			startPos := Position{X: 0, Y: 0}
+			if direction == layout.DirectionHorizontal {
+				startPos.X = 50 // Mais à esquerda em layout horizontal
+				startPos.Y = 100
+			} else {
+				startPos.X = 100
+				startPos.Y = 50 // Mais acima em layout vertical
+			}
+
+			startNode := Node{
+				ID:   startNodeID,
+				Type: "start", // Tipo especial para nó de entrada
+				Data: map[string]any{
+					"kind":       "start",
+					"final":      false,
+					"title":      "Início",
+					"entry_kind": string(entry.Kind),
+					"target":     string(entry.Target),
+				},
+				Position:       startPos,
+				Draggable:      boolPtr(true),
+				Selectable:     boolPtr(true),
+				Deletable:      boolPtr(false), // Nó de início não pode ser deletado
+				SourcePosition: "right",        // Sempre aponta para a direita inicialmente
+				TargetPosition: "left",         // Não recebe conexões
+			}
+
+			// Ajusta handles baseado na direção
+			if direction == layout.DirectionHorizontal {
+				startNode.SourcePosition = "right"
+			} else {
+				startNode.SourcePosition = "bottom"
+			}
+
+			// Dimensões fixas para nó de entrada
+			width, height := 120.0, 60.0
+			startNode.Width = &width
+			startNode.Height = &height
+
+			nodes = append(nodes, startNode)
+
+			// Cria edge do nó de entrada para o nó alvo
+			startEdge := Edge{
+				ID:         "__edge_start_" + string(entry.Target),
+				Source:     startNodeID,
+				Target:     string(entry.Target),
+				Type:       "default",
+				Label:      "início",
+				MarkerEnd:  "arrowclosed",
+				Animated:   boolPtr(false),
+				Deletable:  boolPtr(false), // Edge de início não pode ser deletada
+				Selectable: boolPtr(true),
+			}
+
+			// Handles da edge de entrada
+			if direction == layout.DirectionHorizontal {
+				sourceHandle := "right"
+				targetHandle := "left"
+				startEdge.SourceHandle = &sourceHandle
+				startEdge.TargetHandle = &targetHandle
+			} else {
+				sourceHandle := "bottom"
+				targetHandle := "top"
+				startEdge.SourceHandle = &sourceHandle
+				startEdge.TargetHandle = &targetHandle
+			}
+
+			edges = append(edges, startEdge)
+		}
+	}
+
+	// Continua com os nós regulares
 	for _, n := range d.Graph.Nodes {
 		data := map[string]any{
 			"kind":  n.Kind,
@@ -172,7 +253,8 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 		nodes = append(nodes, node)
 	}
 
-	edges = make([]Edge, 0, len(d.Graph.Edges))
+	// Adiciona edges regulares às edges existentes (que já podem incluir edges de início)
+	regularEdges := make([]Edge, 0, len(d.Graph.Edges))
 	for i, e := range d.Graph.Edges {
 		data := map[string]any{}
 		if e.Label != "" {
@@ -232,8 +314,11 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 			TargetHandle: &targetHandle, // Handle específico do destino
 		}
 
-		edges = append(edges, edge)
+		regularEdges = append(regularEdges, edge)
 	}
+
+	// Combina edges de início com edges regulares
+	edges = append(edges, regularEdges...)
 	return
 }
 
