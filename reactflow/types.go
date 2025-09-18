@@ -7,12 +7,20 @@ type Position struct {
 	Y float64 `json:"y"` // Coordenada vertical (pixels)
 }
 
+// Dimensions representa as dimensões de um nó
+type Dimensions struct {
+	Width  float64 `json:"width"`  // Largura do nó (pixels)
+	Height float64 `json:"height"` // Altura do nó (pixels)
+}
+
 // Node representa um nó no formato React Flow para o editor visual
 type Node struct {
-	ID       string         `json:"id"`             // Identificador único do nó
-	Type     string         `json:"type,omitempty"` // Tipo do nó (mapeado do flow.Node.Kind)
-	Data     map[string]any `json:"data,omitempty"` // Dados do nó (props, refs, título, etc.)
-	Position Position       `json:"position"`       // Posição do nó no canvas (obrigatório no React Flow)
+	ID       string         `json:"id"`               // Identificador único do nó
+	Type     string         `json:"type,omitempty"`   // Tipo do nó (mapeado do flow.Node.Kind)
+	Data     map[string]any `json:"data,omitempty"`   // Dados do nó (props, refs, título, etc.)
+	Position Position       `json:"position"`         // Posição do nó no canvas (obrigatório no React Flow)
+	Width    *float64       `json:"width,omitempty"`  // Largura do nó para auto-layout
+	Height   *float64       `json:"height,omitempty"` // Altura do nó para auto-layout
 	// Campos opcionais disponíveis: className, draggable, selectable, etc.
 }
 

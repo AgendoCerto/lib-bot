@@ -21,7 +21,7 @@ import (
 func main() {
 	// Configuração de flags de linha de comando
 	in := flag.String("in", "", "Caminho do arquivo Design JSON (opcional; usa exemplo se vazio)")
-	out := flag.String("out", "plan", "Tipo de saída: plan | reactflow")
+	out := flag.String("out", "plan", "Tipo de saída: plan | reactflow | reactflow-auto-v | reactflow-auto-h")
 	adapterName := flag.String("adapter", "whatsapp", "Adapter: whatsapp (por enquanto)")
 	pretty := flag.Bool("pretty", true, "Imprimir JSON com identação")
 	flag.Parse()
@@ -54,8 +54,12 @@ func main() {
 		doPlan(design, reg, a, *pretty)
 	case "reactflow":
 		doReactFlow(design, *pretty)
+	case "reactflow-auto-v":
+		doReactFlowAutoVertical(design, *pretty)
+	case "reactflow-auto-h":
+		doReactFlowAutoHorizontal(design, *pretty)
 	default:
-		log.Fatalf("valor inválido para -out: %q (use: plan | reactflow)", *out)
+		log.Fatalf("valor inválido para -out: %q (use: plan | reactflow | reactflow-auto-v | reactflow-auto-h)", *out)
 	}
 }
 
@@ -84,6 +88,34 @@ func doReactFlow(design io.DesignDoc, pretty bool) {
 	payload := map[string]any{
 		"nodes": nodes,
 		"edges": edges,
+	}
+	printJSON(payload, pretty)
+}
+
+// doReactFlowAutoVertical converte para React Flow com auto-layout vertical
+func doReactFlowAutoVertical(design io.DesignDoc, pretty bool) {
+	nodes, edges := rf.ApplyAutoLayoutVertical(design)
+	payload := map[string]any{
+		"nodes": nodes,
+		"edges": edges,
+		"layout": map[string]any{
+			"direction": "vertical",
+			"applied":   true,
+		},
+	}
+	printJSON(payload, pretty)
+}
+
+// doReactFlowAutoHorizontal converte para React Flow com auto-layout horizontal
+func doReactFlowAutoHorizontal(design io.DesignDoc, pretty bool) {
+	nodes, edges := rf.ApplyAutoLayoutHorizontal(design)
+	payload := map[string]any{
+		"nodes": nodes,
+		"edges": edges,
+		"layout": map[string]any{
+			"direction": "horizontal",
+			"applied":   true,
+		},
 	}
 	printJSON(payload, pretty)
 }

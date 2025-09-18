@@ -6,6 +6,7 @@ import (
 
 	"lib-bot/flow"
 	"lib-bot/io"
+	"lib-bot/layout"
 )
 
 // DesignToReactFlow converte um design interno para formato React Flow
@@ -39,12 +40,22 @@ func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
 			pos.Y = *n.Y
 		}
 
-		nodes = append(nodes, Node{
+		node := Node{
 			ID:       string(n.ID),
 			Type:     n.Kind, // React Flow "type" = seu "kind" (message, confirm, etc.)
 			Data:     data,
 			Position: pos,
-		})
+		}
+
+		// Adiciona dimensões se disponíveis
+		if n.Width != nil {
+			node.Width = n.Width
+		}
+		if n.Height != nil {
+			node.Height = n.Height
+		}
+
+		nodes = append(nodes, node)
 	}
 
 	edges = make([]Edge, 0, len(d.Graph.Edges))
@@ -122,6 +133,14 @@ func ReactFlowToDesign(nodes []Node, edges []Edge, base io.DesignDoc) io.DesignD
 		fn.X = &n.Position.X
 		fn.Y = &n.Position.Y
 
+		// Preserva as dimensões se disponíveis
+		if n.Width != nil {
+			fn.Width = n.Width
+		}
+		if n.Height != nil {
+			fn.Height = n.Height
+		}
+
 		out.Graph.Nodes = append(out.Graph.Nodes, fn)
 	}
 
@@ -146,4 +165,63 @@ func ReactFlowToDesign(nodes []Node, edges []Edge, base io.DesignDoc) io.DesignD
 	}
 
 	return out
+}
+
+// DesignToReactFlowWithAutoLayout converte design para React Flow aplicando auto-layout
+func DesignToReactFlowWithAutoLayout(d io.DesignDoc, direction layout.Direction) (nodes []Node, edges []Edge) {
+	// Primeiro converte normalmente
+	nodes, edges = DesignToReactFlow(d)
+
+	// Aplica auto-layout se não há posições definidas
+	needsLayout := true
+	for _, node := range nodes {
+		// Se algum nó tem posição definida, assume que o layout já foi feito
+		if node.Position.X != 0 || node.Position.Y != 0 {
+			needsLayout = false
+			break
+		}
+	}
+
+	if needsLayout {
+		nodes = ApplyAutoLayout(d.Graph.Nodes, d.Graph.Edges, nodes, direction)
+	}
+
+	return nodes, edges
+}
+
+// ApplyAutoLayout aplica algoritmo de auto-layout aos nós React Flow
+func ApplyAutoLayout(flowNodes []flow.Node, flowEdges []flow.Edge, reactNodes []Node, direction layout.Direction) []Node {
+	config := layout.DefaultConfig()
+	config.Direction = direction
+
+	// Executa algoritmo de layout
+	result := layout.AutoLayout(flowNodes, flowEdges, config)
+
+	// Mapeia resultados de volta para os nós React Flow
+	nodeMap := make(map[string]*Node)
+	for i := range reactNodes {
+		nodeMap[reactNodes[i].ID] = &reactNodes[i]
+	}
+
+	// Aplica posições e dimensões calculadas
+	for _, layoutNode := range result.Nodes {
+		if node, exists := nodeMap[string(layoutNode.ID)]; exists {
+			node.Position.X = layoutNode.X
+			node.Position.Y = layoutNode.Y
+			node.Width = &layoutNode.Width
+			node.Height = &layoutNode.Height
+		}
+	}
+
+	return reactNodes
+}
+
+// ApplyAutoLayoutVertical aplica layout vertical aos nós
+func ApplyAutoLayoutVertical(d io.DesignDoc) (nodes []Node, edges []Edge) {
+	return DesignToReactFlowWithAutoLayout(d, layout.DirectionVertical)
+}
+
+// ApplyAutoLayoutHorizontal aplica layout horizontal aos nós
+func ApplyAutoLayoutHorizontal(d io.DesignDoc) (nodes []Node, edges []Edge) {
+	return DesignToReactFlowWithAutoLayout(d, layout.DirectionHorizontal)
 }
