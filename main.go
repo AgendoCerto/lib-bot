@@ -128,7 +128,7 @@ func doReactFlowAutoHorizontal(design io.DesignDoc, pretty bool, outFile string)
 func generateOutputFileName(inputFile, outputType string) string {
 	// Remove extensão do arquivo de entrada
 	base := strings.TrimSuffix(inputFile, filepath.Ext(inputFile))
-	
+
 	switch outputType {
 	case "reactflow":
 		return base + "-reactflow.json"
