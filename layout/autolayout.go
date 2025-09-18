@@ -89,17 +89,26 @@ func AutoLayout(nodes []flow.Node, edges []flow.Edge, config Config) LayoutResul
 		return LayoutResult{}
 	}
 
-	// 1. Constrói grafo de adjacência e calcula níveis
-	graph := buildGraph(nodes, edges)
+	// 1. Separa nós verdadeiramente isolados dos conectados ao fluxo
+	connectedNodes, isolatedNodes := separateConnectedAndTrulyIsolated(nodes, edges)
+
+	// 2. Constrói grafo apenas com nós conectados e calcula níveis
+	graph := buildGraph(connectedNodes, edges)
 	levels := calculateLevels(graph, findStartNodes(graph))
 
-	// 2. Organiza nós por nível
-	nodesByLevel := organizeByLevels(nodes, levels)
+	// 3. Organiza nós conectados por nível
+	nodesByLevel := organizeByLevels(connectedNodes, levels)
 
-	// 3. Calcula posições
+	// 4. Calcula posições dos nós conectados
 	layoutNodes := calculatePositions(nodesByLevel, config)
 
-	// 4. Calcula dimensões totais
+	// 5. Adiciona nós isolados próximos ao fluxo principal
+	if len(isolatedNodes) > 0 {
+		isolatedLayoutNodes := positionIsolatedNodes(isolatedNodes, layoutNodes, config)
+		layoutNodes = append(layoutNodes, isolatedLayoutNodes...)
+	}
+
+	// 6. Calcula dimensões totais
 	width, height := calculateTotalDimensions(layoutNodes, config)
 
 	return LayoutResult{
@@ -195,8 +204,9 @@ func organizeByLevels(nodes []flow.Node, levels map[flow.ID]int) [][]flow.Node {
 	nodesByLevel := make([][]flow.Node, maxLevel+1)
 
 	for _, node := range nodes {
-		level := levels[node.ID]
-		nodesByLevel[level] = append(nodesByLevel[level], node)
+		if level, exists := levels[node.ID]; exists {
+			nodesByLevel[level] = append(nodesByLevel[level], node)
+		}
 	}
 
 	// Ordena nós dentro de cada nível por ID para consistência
@@ -207,6 +217,110 @@ func organizeByLevels(nodes []flow.Node, levels map[flow.ID]int) [][]flow.Node {
 	}
 
 	return nodesByLevel
+}
+
+// separateConnectedAndTrulyIsolated separa nós que têm conexões dos verdadeiramente isolados
+func separateConnectedAndTrulyIsolated(nodes []flow.Node, edges []flow.Edge) (connected, isolated []flow.Node) {
+	// Cria mapa de nós que aparecem em edges
+	connectedNodeIDs := make(map[flow.ID]bool)
+
+	for _, edge := range edges {
+		connectedNodeIDs[edge.From] = true
+		connectedNodeIDs[edge.To] = true
+	}
+
+	// Separa nós baseado na presença em edges
+	for _, node := range nodes {
+		if connectedNodeIDs[node.ID] {
+			connected = append(connected, node)
+		} else {
+			isolated = append(isolated, node)
+		}
+	}
+
+	return connected, isolated
+}
+
+// positionIsolatedNodes posiciona nós isolados próximos ao fluxo principal
+func positionIsolatedNodes(isolatedNodes []flow.Node, connectedNodes []LayoutNode, config Config) []LayoutNode {
+	if len(isolatedNodes) == 0 {
+		return []LayoutNode{}
+	}
+
+	// Encontra a extremidade direita/inferior do fluxo principal
+	var maxX, maxY float64
+	var minX, minY float64
+	first := true
+
+	for _, node := range connectedNodes {
+		nodeMaxX := node.X + node.Width/2
+		nodeMaxY := node.Y + node.Height/2
+		nodeMinX := node.X - node.Width/2
+		nodeMinY := node.Y - node.Height/2
+
+		if first {
+			maxX, maxY = nodeMaxX, nodeMaxY
+			minX, minY = nodeMinX, nodeMinY
+			first = false
+		} else {
+			if nodeMaxX > maxX {
+				maxX = nodeMaxX
+			}
+			if nodeMaxY > maxY {
+				maxY = nodeMaxY
+			}
+			if nodeMinX < minX {
+				minX = nodeMinX
+			}
+			if nodeMinY < minY {
+				minY = nodeMinY
+			}
+		}
+	}
+
+	var isolatedLayoutNodes []LayoutNode
+
+	// Configuração para nós isolados
+	isolatedSpacing := config.NodeSpacing * 1.5 // Espaçamento maior entre nós isolados
+	var isolatedGap float64 = 150               // Distância do fluxo principal
+
+	if config.Direction == DirectionVertical {
+		// Layout vertical: coloca nós isolados à direita do fluxo principal
+		startX := maxX + isolatedGap
+		startY := minY
+
+		for i, node := range isolatedNodes {
+			width, height := getNodeDimensions(node)
+
+			isolatedLayoutNodes = append(isolatedLayoutNodes, LayoutNode{
+				ID:     node.ID,
+				X:      startX,
+				Y:      startY + float64(i)*(height+isolatedSpacing),
+				Width:  width,
+				Height: height,
+				Level:  -1, // Marca como nó isolado
+			})
+		}
+	} else {
+		// Layout horizontal: coloca nós isolados abaixo do fluxo principal
+		startX := minX
+		startY := maxY + isolatedGap
+
+		for i, node := range isolatedNodes {
+			width, height := getNodeDimensions(node)
+
+			isolatedLayoutNodes = append(isolatedLayoutNodes, LayoutNode{
+				ID:     node.ID,
+				X:      startX + float64(i)*(width+isolatedSpacing),
+				Y:      startY,
+				Width:  width,
+				Height: height,
+				Level:  -1, // Marca como nó isolado
+			})
+		}
+	}
+
+	return isolatedLayoutNodes
 }
 
 // calculatePositions calcula posições finais dos nós
