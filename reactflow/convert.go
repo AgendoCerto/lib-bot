@@ -3,6 +3,7 @@ package reactflow
 
 import (
 	"fmt"
+	"strings"
 
 	"lib-bot/flow"
 	"lib-bot/io"
@@ -41,10 +42,15 @@ func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
 		}
 
 		node := Node{
-			ID:       string(n.ID),
-			Type:     n.Kind, // React Flow "type" = seu "kind" (message, confirm, etc.)
-			Data:     data,
-			Position: pos,
+			ID:             string(n.ID),
+			Type:           n.Kind, // React Flow "type" = seu "kind" (message, confirm, etc.)
+			Data:           data,
+			Position:       pos,
+			Draggable:      boolPtr(true),     // Permite arrastar nós por padrão
+			Selectable:     boolPtr(true),     // Permite selecionar nós por padrão
+			Deletable:      boolPtr(!n.Final), // Nós finais não podem ser deletados por segurança
+			SourcePosition: "right",           // Handle de saída à direita
+			TargetPosition: "left",            // Handle de entrada à esquerda
 		}
 
 		// Adiciona dimensões se disponíveis, senão usa dimensões padrão
@@ -78,12 +84,47 @@ func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
 		if e.Guard != "" {
 			data["guard"] = e.Guard
 		}
+		// Prepara o label direto da edge se disponível
+		var directLabel string
+		if e.Label != "" {
+			directLabel = e.Label
+		}
+
+		// Determina estilo da edge baseado no tipo
+		edgeType := "default"
+		animated := false
+		markerEnd := "arrowclosed"
+
+		// Personaliza edge baseado em guards/labels especiais
+		if e.Guard != "" {
+			// Edges com guards são condicionais
+			if strings.Contains(e.Guard, "timeout") {
+				edgeType = "step"
+				animated = true
+				markerEnd = "arrow"
+			} else if strings.Contains(e.Guard, "fallback") || strings.Contains(e.Guard, "invalid") {
+				edgeType = "step"
+				markerEnd = "arrow"
+			}
+		}
+
+		// Edges de timeout/error podem ser animadas para destaque
+		if e.Label == "timeout" || e.Label == "invalid" || e.Label == "fallback" {
+			animated = true
+		}
+
 		id := fmt.Sprintf("e%d_%s_%s", i, e.From, e.To)
 		edges = append(edges, Edge{
-			ID:     id,
-			Source: string(e.From),
-			Target: string(e.To),
-			Data:   data,
+			ID:         id,
+			Source:     string(e.From),
+			Target:     string(e.To),
+			Type:       edgeType, // Tipo baseado no contexto
+			Data:       data,
+			Label:      directLabel,   // Label direta na edge
+			MarkerEnd:  markerEnd,     // Marcador baseado no tipo
+			Animated:   &animated,     // Animação para destacar fluxos especiais
+			Deletable:  boolPtr(true), // Permite deletar edges por padrão
+			Selectable: boolPtr(true), // Permite selecionar edges por padrão
 		})
 	}
 	return
@@ -232,4 +273,31 @@ func ApplyAutoLayoutVertical(d io.DesignDoc) (nodes []Node, edges []Edge) {
 // ApplyAutoLayoutHorizontal aplica layout horizontal aos nós
 func ApplyAutoLayoutHorizontal(d io.DesignDoc) (nodes []Node, edges []Edge) {
 	return DesignToReactFlowWithAutoLayout(d, layout.DirectionHorizontal)
+}
+
+// CreateReactFlowDocument cria um documento ReactFlow completo com configurações otimizadas
+func CreateReactFlowDocument(nodes []Node, edges []Edge, layoutInfo *LayoutInfo) ReactFlowDocument {
+	return ReactFlowDocument{
+		Nodes: nodes,
+		Edges: edges,
+		DefaultEdgeOptions: &DefaultEdgeOptions{
+			Type:       "default",
+			Animated:   false,
+			MarkerEnd:  "arrowclosed",
+			Deletable:  true,
+			Selectable: true,
+		},
+		DefaultNodeOptions: &DefaultNodeOptions{
+			Draggable:      true,
+			Selectable:     true,
+			SourcePosition: "right",
+			TargetPosition: "left",
+		},
+		Layout: layoutInfo,
+	}
+}
+
+// boolPtr retorna um ponteiro para um valor booleano
+func boolPtr(b bool) *bool {
+	return &b
 }
