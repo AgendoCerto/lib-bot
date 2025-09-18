@@ -66,5 +66,34 @@ func (f *ConfirmFactory) New(_ string, props map[string]any) (Component, error) 
 		}
 		c = c.WithText(title, yes, no)
 	}
-	return c, nil
+
+	// Parse behaviors
+	behavior, err := ParseBehavior(props, f.det)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ConfirmWithBehavior{
+		confirm:  c,
+		behavior: behavior,
+	}, nil
+}
+
+// ConfirmWithBehavior é um wrapper que inclui behaviors
+type ConfirmWithBehavior struct {
+	confirm  *Confirm
+	behavior *ComponentBehavior
+}
+
+func (cwb *ConfirmWithBehavior) Kind() string {
+	return cwb.confirm.Kind()
+}
+
+func (cwb *ConfirmWithBehavior) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := cwb.confirm.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+	spec.Behavior = cwb.behavior
+	return spec, nil
 }

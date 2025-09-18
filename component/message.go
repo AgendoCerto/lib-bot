@@ -69,7 +69,36 @@ func (f *MessageFactory) New(_ string, props map[string]any) (Component, error) 
 		h := decodeHSM(raw)
 		m = m.WithHSM(h)
 	}
-	return m, nil
+
+	// Parse behaviors
+	behavior, err := ParseBehavior(props, f.det)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MessageWithBehavior{
+		message:  m,
+		behavior: behavior,
+	}, nil
+}
+
+// MessageWithBehavior é um wrapper que inclui behaviors
+type MessageWithBehavior struct {
+	message  *Message
+	behavior *ComponentBehavior
+}
+
+func (mwb *MessageWithBehavior) Kind() string {
+	return mwb.message.Kind()
+}
+
+func (mwb *MessageWithBehavior) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := mwb.message.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+	spec.Behavior = mwb.behavior
+	return spec, nil
 }
 
 func decodeHSM(raw map[string]any) *hsm.HSMTemplate {

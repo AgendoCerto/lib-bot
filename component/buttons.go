@@ -140,5 +140,33 @@ func (f *ButtonsFactory) New(_ string, props map[string]any) (Component, error) 
 		}
 	}
 
-	return b, nil
+	// Parse behaviors
+	behavior, err := ParseBehavior(props, f.det)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ButtonsWithBehavior{
+		buttons:  b,
+		behavior: behavior,
+	}, nil
+}
+
+// ButtonsWithBehavior é um wrapper que inclui behaviors
+type ButtonsWithBehavior struct {
+	buttons  *Buttons
+	behavior *ComponentBehavior
+}
+
+func (bwb *ButtonsWithBehavior) Kind() string {
+	return bwb.buttons.Kind()
+}
+
+func (bwb *ButtonsWithBehavior) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := bwb.buttons.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+	spec.Behavior = bwb.behavior
+	return spec, nil
 }

@@ -135,5 +135,33 @@ func (f *MediaFactory) New(_ string, props map[string]any) (Component, error) {
 		}
 	}
 
-	return m, nil
+	// Parse behaviors
+	behavior, err := ParseBehavior(props, f.det)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MediaWithBehavior{
+		media:    m,
+		behavior: behavior,
+	}, nil
+}
+
+// MediaWithBehavior é um wrapper que inclui behaviors
+type MediaWithBehavior struct {
+	media    *Media
+	behavior *ComponentBehavior
+}
+
+func (mwb *MediaWithBehavior) Kind() string {
+	return mwb.media.Kind()
+}
+
+func (mwb *MediaWithBehavior) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := mwb.media.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+	spec.Behavior = mwb.behavior
+	return spec, nil
 }

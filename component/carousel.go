@@ -184,5 +184,33 @@ func (f *CarouselFactory) New(_ string, props map[string]any) (Component, error)
 		}
 	}
 
-	return c, nil
+	// Parse behaviors
+	behavior, err := ParseBehavior(props, f.det)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CarouselWithBehavior{
+		carousel: c,
+		behavior: behavior,
+	}, nil
+}
+
+// CarouselWithBehavior é um wrapper que inclui behaviors
+type CarouselWithBehavior struct {
+	carousel *Carousel
+	behavior *ComponentBehavior
+}
+
+func (cwb *CarouselWithBehavior) Kind() string {
+	return cwb.carousel.Kind()
+}
+
+func (cwb *CarouselWithBehavior) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := cwb.carousel.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+	spec.Behavior = cwb.behavior
+	return spec, nil
 }

@@ -38,6 +38,7 @@ func NewPipeline() Pipeline {
 			NewTopologyStep(),
 			NewSizeStep(),
 			NewAdapterStep(),
+			NewBehaviorValidationStep(),
 		},
 	}
 }

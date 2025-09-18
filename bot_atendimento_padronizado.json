@@ -31,10 +31,16 @@
           "hsm": {
             "name": "welcome_clinic_template"
           },
-          "fallback": {
-            "text": "Olá! Bem-vindo à {{props.clinica_nome}}! 🏥",
+          "timeout": {
+            "duration": 30,
+            "action": "retry",
             "max_attempts": 2,
-            "timeout": 30
+            "message": "Olá! Bem-vindo à {{props.clinica_nome}}! 🏥"
+          },
+          "delay": {
+            "after": 2000,
+            "show_typing": true,
+            "reason": "Simular digitação"
           }
         },
         "x": 100,
@@ -45,22 +51,6 @@
           "outputs": ["complete"]
       },
       {
-        "id": "delay_inicial",
-        "kind": "delay",
-        "title": "Delay Inicial",
-        "props": {
-          "duration": 2000,
-          "unit": "milliseconds",
-          "reason": "Simular digitação"
-        },
-        "x": 100,
-        "y": 220,
-        "width": 200,
-        "height": 60,
-        "inputs": ["trigger"],
-        "outputs": ["complete"]
-      },
-      {
         "id": "apresentacao_imagem",
         "kind": "media",
         "title": "Imagem da Clínica",
@@ -69,22 +59,23 @@
           "url": "https://example.com/images/clinica-fachada.jpg",
           "caption": "Bem-vindo à {{props.clinica_nome}}! 🏥\n\nEstamos aqui para cuidar da sua saúde com excelência.",
           "alt_text": "Fachada da Clínica Saúde & Bem-Estar",
-          "fallback": {
-            "text": "🏥 Bem-vindo à {{props.clinica_nome}}!\n\nEstamos aqui para cuidar da sua saúde com excelência.",
-            "reason": "Falha no carregamento da imagem"
-          },
           "size_limit": "5MB",
           "dimensions": {
             "max_width": 1920,
             "max_height": 1080
+          },
+          "validation": {
+            "on_invalid": "retry",
+            "max_attempts": 2,
+            "fallback_text": "🏥 Bem-vindo à {{props.clinica_nome}}!\n\nEstamos aqui para cuidar da sua saúde com excelência."
           }
         },
         "x": 100,
-        "y": 320,
+        "y": 220,
         "width": 300,
         "height": 120,
         "inputs": ["trigger"],
-        "outputs": ["sent", "failed", "timeout"]
+        "outputs": ["sent", "failed"]
       },
       {
         "id": "menu_principal",
@@ -115,20 +106,25 @@
               "position": 3
             }
           ],
-          "fallback": {
-            "text": "Digite:\n1️⃣ Para agendar consulta\n2️⃣ Para ver agendamentos\n3️⃣ Para conhecer planos",
-            "timeout": 60,
+          "header": "Menu de Atendimento",
+          "footer": "Responda em até 5 minutos",
+          "timeout": {
+            "duration": 60,
+            "action": "retry",
             "max_attempts": 2
           },
-          "header": "Menu de Atendimento",
-          "footer": "Responda em até 5 minutos"
+          "validation": {
+            "on_invalid": "retry",
+            "max_attempts": 2,
+            "fallback_text": "Digite:\n1️⃣ Para agendar consulta\n2️⃣ Para ver agendamentos\n3️⃣ Para conhecer planos"
+          }
         },
         "x": 100,
-        "y": 480,
+        "y": 380,
         "width": 350,
         "height": 200,
         "inputs": ["trigger"],
-        "outputs": ["btn_agendar", "btn_agendamentos", "btn_planos", "timeout", "invalid", "fallback"]
+        "outputs": ["btn_agendar", "btn_agendamentos", "btn_planos"]
       },
       {
         "id": "especialidades_lista",

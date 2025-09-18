@@ -152,5 +152,33 @@ func (f *ListPickerFactory) New(_ string, props map[string]any) (Component, erro
 		}
 	}
 
-	return l, nil
+	// Parse behaviors
+	behavior, err := ParseBehavior(props, f.det)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListPickerWithBehavior{
+		listPicker: l,
+		behavior:   behavior,
+	}, nil
+}
+
+// ListPickerWithBehavior é um wrapper que inclui behaviors
+type ListPickerWithBehavior struct {
+	listPicker *ListPicker
+	behavior   *ComponentBehavior
+}
+
+func (lpwb *ListPickerWithBehavior) Kind() string {
+	return lpwb.listPicker.Kind()
+}
+
+func (lpwb *ListPickerWithBehavior) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := lpwb.listPicker.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+	spec.Behavior = lpwb.behavior
+	return spec, nil
 }
