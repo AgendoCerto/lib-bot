@@ -10,12 +10,109 @@ import (
 	"lib-bot/layout"
 )
 
+// isFallbackEdge detecta se uma edge é de fallback/retry/timeout
+func isFallbackEdge(e flow.Edge) bool {
+	return e.Label == "timeout" || e.Label == "invalid" || e.Label == "fallback" ||
+		strings.Contains(e.Guard, "timeout") || strings.Contains(e.Guard, "fallback") ||
+		strings.Contains(e.Guard, "invalid")
+}
+
+// getEdgeHandles determina handles específicos para uma edge baseado na direção
+func getEdgeHandles(e flow.Edge, direction layout.Direction) (sourceHandle, targetHandle string) {
+	isFallback := isFallbackEdge(e)
+	isLoop := string(e.From) == string(e.To)
+
+	if direction == layout.DirectionHorizontal {
+		// Layout horizontal: fluxo normal left->right, fallbacks top/bottom
+		if isFallback {
+			if isLoop {
+				sourceHandle = "bottom"
+				targetHandle = "top"
+			} else {
+				sourceHandle = "bottom"
+				targetHandle = "top"
+			}
+		} else {
+			sourceHandle = "right"
+			targetHandle = "left"
+		}
+	} else {
+		// Layout vertical: fluxo normal top->bottom, fallbacks left/right
+		if isFallback {
+			if isLoop {
+				sourceHandle = "right"
+				targetHandle = "left"
+			} else {
+				sourceHandle = "right"
+				targetHandle = "left"
+			}
+		} else {
+			sourceHandle = "bottom"
+			targetHandle = "top"
+		}
+	}
+
+	return sourceHandle, targetHandle
+}
+
+// getHandlePositions determina posições dos handles baseado na direção e se tem fallbacks
+func getHandlePositions(edges []flow.Edge, nodeID flow.ID, direction layout.Direction) (sourcePos, targetPos string) {
+	// Verifica se este nó tem edges de fallback
+	hasOutgoingFallback := false
+	hasIncomingFallback := false
+	for _, e := range edges {
+		if string(e.From) == string(nodeID) && isFallbackEdge(e) {
+			hasOutgoingFallback = true
+		}
+		if string(e.To) == string(nodeID) && isFallbackEdge(e) {
+			hasIncomingFallback = true
+		}
+	}
+
+	if direction == layout.DirectionHorizontal {
+		// Layout horizontal: fluxo normal left->right, fallbacks top/bottom
+		sourcePos, targetPos = "right", "left"
+		if hasOutgoingFallback {
+			sourcePos = "bottom"
+		}
+		if hasIncomingFallback {
+			targetPos = "top"
+		}
+	} else {
+		// Layout vertical: fluxo normal top->bottom, fallbacks left/right
+		sourcePos, targetPos = "bottom", "top"
+		if hasOutgoingFallback {
+			sourcePos = "right"
+		}
+		if hasIncomingFallback {
+			targetPos = "left"
+		}
+	}
+
+	return sourcePos, targetPos
+}
+
 // DesignToReactFlow converte um design interno para formato React Flow
 // - Node.Type  = flow.Node.Kind
 // - Node.Data  = { "props_ref" | "props", "final": bool, "kind": string, "title": string }
 // - Edge.Data  = { "label", "priority", "guard" }
 // - Position   = usa coordenadas persistidas (X,Y) se disponíveis, senão (0,0) por padrão
 func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
+	return DesignToReactFlowWithDirection(d, layout.DirectionVertical) // Padrão vertical
+}
+
+// DesignToReactFlowWithDirection converte design para React Flow com direção específica
+func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) (nodes []Node, edges []Edge) {
+	// Primeiro passo: análise de edges para detectar fallbacks e loops
+	fallbackMap := make(map[string]bool)
+
+	for _, e := range d.Graph.Edges {
+		if isFallbackEdge(e) {
+			edgeKey := string(e.From) + "->" + string(e.To)
+			fallbackMap[edgeKey] = true
+		}
+	}
+
 	nodes = make([]Node, 0, len(d.Graph.Nodes))
 	for _, n := range d.Graph.Nodes {
 		data := map[string]any{
@@ -41,6 +138,9 @@ func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
 			pos.Y = *n.Y
 		}
 
+		// Determina posições dos handles baseado na direção e contexto das conexões
+		sourcePos, targetPos := getHandlePositions(d.Graph.Edges, n.ID, direction)
+
 		node := Node{
 			ID:             string(n.ID),
 			Type:           n.Kind, // React Flow "type" = seu "kind" (message, confirm, etc.)
@@ -49,8 +149,8 @@ func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
 			Draggable:      boolPtr(true),     // Permite arrastar nós por padrão
 			Selectable:     boolPtr(true),     // Permite selecionar nós por padrão
 			Deletable:      boolPtr(!n.Final), // Nós finais não podem ser deletados por segurança
-			SourcePosition: "right",           // Handle de saída à direita
-			TargetPosition: "left",            // Handle de entrada à esquerda
+			SourcePosition: sourcePos,         // Handle de saída dinâmico
+			TargetPosition: targetPos,         // Handle de entrada dinâmico
 		}
 
 		// Adiciona dimensões se disponíveis, senão usa dimensões padrão
@@ -113,19 +213,26 @@ func DesignToReactFlow(d io.DesignDoc) (nodes []Node, edges []Edge) {
 			animated = true
 		}
 
+		// Determina handles específicos para esta edge baseado na direção
+		sourceHandle, targetHandle := getEdgeHandles(e, direction)
+
 		id := fmt.Sprintf("e%d_%s_%s", i, e.From, e.To)
-		edges = append(edges, Edge{
-			ID:         id,
-			Source:     string(e.From),
-			Target:     string(e.To),
-			Type:       edgeType, // Tipo baseado no contexto
-			Data:       data,
-			Label:      directLabel,   // Label direta na edge
-			MarkerEnd:  markerEnd,     // Marcador baseado no tipo
-			Animated:   &animated,     // Animação para destacar fluxos especiais
-			Deletable:  boolPtr(true), // Permite deletar edges por padrão
-			Selectable: boolPtr(true), // Permite selecionar edges por padrão
-		})
+		edge := Edge{
+			ID:           id,
+			Source:       string(e.From),
+			Target:       string(e.To),
+			Type:         edgeType, // Tipo baseado no contexto
+			Data:         data,
+			Label:        directLabel,   // Label direta na edge
+			MarkerEnd:    markerEnd,     // Marcador baseado no tipo
+			Animated:     &animated,     // Animação para destacar fluxos especiais
+			Deletable:    boolPtr(true), // Permite deletar edges por padrão
+			Selectable:   boolPtr(true), // Permite selecionar edges por padrão
+			SourceHandle: &sourceHandle, // Handle específico da fonte
+			TargetHandle: &targetHandle, // Handle específico do destino
+		}
+
+		edges = append(edges, edge)
 	}
 	return
 }
@@ -218,8 +325,8 @@ func ReactFlowToDesign(nodes []Node, edges []Edge, base io.DesignDoc) io.DesignD
 
 // DesignToReactFlowWithAutoLayout converte design para React Flow aplicando auto-layout
 func DesignToReactFlowWithAutoLayout(d io.DesignDoc, direction layout.Direction) (nodes []Node, edges []Edge) {
-	// Primeiro converte normalmente
-	nodes, edges = DesignToReactFlow(d)
+	// Primeiro converte com direção específica para handles corretos
+	nodes, edges = DesignToReactFlowWithDirection(d, direction)
 
 	// Sempre aplica auto-layout quando solicitado explicitamente
 	// (ignorando posições existentes)

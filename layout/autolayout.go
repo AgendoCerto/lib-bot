@@ -4,6 +4,7 @@ package layout
 import (
 	"math"
 	"sort"
+	"strings"
 
 	"lib-bot/flow"
 )
@@ -457,47 +458,127 @@ func calculatePositions(nodesByLevel [][]flow.Node, config Config) []LayoutNode 
 			continue
 		}
 
-		// Calcula dimensões dos nós neste nível
-		var totalWidth, maxHeight float64
-		var nodeDims []struct{ width, height float64 }
+		// Separa nós principais de nós de fallback
+		mainNodes, fallbackNodes := separateFallbackNodes(nodesInLevel)
 
-		for _, node := range nodesInLevel {
-			width, height := getNodeDimensions(node)
-			nodeDims = append(nodeDims, struct{ width, height float64 }{width, height})
-			totalWidth += width
-			if height > maxHeight {
-				maxHeight = height
-			}
+		// Posiciona nós principais
+		layoutNodes = append(layoutNodes, positionMainNodes(mainNodes, levelIndex, config)...)
+
+		// Posiciona nós de fallback lateralmente
+		if len(fallbackNodes) > 0 {
+			layoutNodes = append(layoutNodes, positionFallbackNodes(fallbackNodes, levelIndex, config)...)
+		}
+	}
+
+	return layoutNodes
+}
+
+// separateFallbackNodes separa nós principais de nós de fallback baseado no ID
+func separateFallbackNodes(nodes []flow.Node) (main, fallback []flow.Node) {
+	for _, node := range nodes {
+		nodeID := strings.ToLower(string(node.ID))
+		if isFallbackNode(nodeID) {
+			fallback = append(fallback, node)
+		} else {
+			main = append(main, node)
+		}
+	}
+	return main, fallback
+}
+
+// isFallbackNode verifica se um nó é de fallback baseado no ID
+func isFallbackNode(nodeID string) bool {
+	fallbackKeywords := []string{"erro", "error", "timeout", "invalid", "fallback", "retry"}
+	for _, keyword := range fallbackKeywords {
+		if strings.Contains(nodeID, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// positionMainNodes posiciona nós principais normalmente
+func positionMainNodes(nodes []flow.Node, levelIndex int, config Config) []LayoutNode {
+	if len(nodes) == 0 {
+		return []LayoutNode{}
+	}
+
+	var layoutNodes []LayoutNode
+	var totalWidth, maxHeight float64
+	var nodeDims []struct{ width, height float64 }
+
+	for _, node := range nodes {
+		width, height := getNodeDimensions(node)
+		nodeDims = append(nodeDims, struct{ width, height float64 }{width, height})
+		totalWidth += width
+		if height > maxHeight {
+			maxHeight = height
+		}
+	}
+
+	// Adiciona espaçamento entre nós
+	if len(nodes) > 1 {
+		totalWidth += config.NodeSpacing * float64(len(nodes)-1)
+	}
+
+	// Calcula posições baseado na direção
+	for i, node := range nodes {
+		var x, y float64
+
+		if config.Direction == DirectionVertical {
+			// Layout vertical: nós organizados horizontalmente por nível
+			x = config.StartX - totalWidth/2 + getOffsetForNode(i, nodeDims, config.NodeSpacing)
+			y = config.StartY + float64(levelIndex)*config.LevelSpacing
+		} else {
+			// Layout horizontal: nós organizados verticalmente por nível
+			x = config.StartX + float64(levelIndex)*config.LevelSpacing
+			y = config.StartY - totalWidth/2 + getOffsetForNode(i, nodeDims, config.NodeSpacing)
 		}
 
-		// Adiciona espaçamento entre nós
-		if len(nodesInLevel) > 1 {
-			totalWidth += config.NodeSpacing * float64(len(nodesInLevel)-1)
+		layoutNodes = append(layoutNodes, LayoutNode{
+			ID:     node.ID,
+			X:      x,
+			Y:      y,
+			Width:  nodeDims[i].width,
+			Height: nodeDims[i].height,
+			Level:  levelIndex,
+		})
+	}
+
+	return layoutNodes
+}
+
+// positionFallbackNodes posiciona nós de fallback lateralmente
+func positionFallbackNodes(nodes []flow.Node, levelIndex int, config Config) []LayoutNode {
+	if len(nodes) == 0 {
+		return []LayoutNode{}
+	}
+
+	var layoutNodes []LayoutNode
+	fallbackSpacing := config.NodeSpacing * 1.5 // Espaçamento maior para fallbacks
+
+	for i, node := range nodes {
+		width, height := getNodeDimensions(node)
+		var x, y float64
+
+		if config.Direction == DirectionVertical {
+			// Nós de fallback ficam à direita do fluxo principal
+			x = config.StartX + 400 + float64(i)*fallbackSpacing
+			y = config.StartY + float64(levelIndex)*config.LevelSpacing
+		} else {
+			// Nós de fallback ficam abaixo do fluxo principal  
+			x = config.StartX + float64(levelIndex)*config.LevelSpacing
+			y = config.StartY + 300 + float64(i)*fallbackSpacing
 		}
 
-		// Calcula posições baseado na direção
-		for i, node := range nodesInLevel {
-			var x, y float64
-
-			if config.Direction == DirectionVertical {
-				// Layout vertical: nós organizados horizontalmente por nível
-				x = config.StartX - totalWidth/2 + getOffsetForNode(i, nodeDims, config.NodeSpacing)
-				y = config.StartY + float64(levelIndex)*config.LevelSpacing
-			} else {
-				// Layout horizontal: nós organizados verticalmente por nível
-				x = config.StartX + float64(levelIndex)*config.LevelSpacing
-				y = config.StartY - totalWidth/2 + getOffsetForNode(i, nodeDims, config.NodeSpacing)
-			}
-
-			layoutNodes = append(layoutNodes, LayoutNode{
-				ID:     node.ID,
-				X:      x,
-				Y:      y,
-				Width:  nodeDims[i].width,
-				Height: nodeDims[i].height,
-				Level:  levelIndex,
-			})
-		}
+		layoutNodes = append(layoutNodes, LayoutNode{
+			ID:     node.ID,
+			X:      x,
+			Y:      y,
+			Width:  width,
+			Height: height,
+			Level:  levelIndex,
+		})
 	}
 
 	return layoutNodes

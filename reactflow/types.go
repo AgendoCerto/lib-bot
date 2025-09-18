@@ -32,17 +32,19 @@ type Node struct {
 
 // Edge representa uma conexão/aresta no formato React Flow
 type Edge struct {
-	ID         string         `json:"id"`                   // Identificador único da aresta
-	Source     string         `json:"source"`               // ID do nó de origem
-	Target     string         `json:"target"`               // ID do nó de destino
-	Type       string         `json:"type,omitempty"`       // Tipo da aresta (default: "default")
-	Data       map[string]any `json:"data,omitempty"`       // Metadados da aresta (label, guard, priority)
-	Animated   *bool          `json:"animated,omitempty"`   // Se a aresta deve ser animada
-	Hidden     *bool          `json:"hidden,omitempty"`     // Se a aresta deve ser ocultada
-	Deletable  *bool          `json:"deletable,omitempty"`  // Se a aresta pode ser deletada
-	Selectable *bool          `json:"selectable,omitempty"` // Se a aresta pode ser selecionada
-	Label      string         `json:"label,omitempty"`      // Label direta da aresta
-	MarkerEnd  string         `json:"markerEnd,omitempty"`  // Marcador de fim (seta)
+	ID           string         `json:"id"`                     // Identificador único da aresta
+	Source       string         `json:"source"`                 // ID do nó de origem
+	Target       string         `json:"target"`                 // ID do nó de destino
+	Type         string         `json:"type,omitempty"`         // Tipo da aresta (default: "default")
+	Data         map[string]any `json:"data,omitempty"`         // Metadados da aresta (label, guard, priority)
+	Animated     *bool          `json:"animated,omitempty"`     // Se a aresta deve ser animada
+	Hidden       *bool          `json:"hidden,omitempty"`       // Se a aresta deve ser ocultada
+	Deletable    *bool          `json:"deletable,omitempty"`    // Se a aresta pode ser deletada
+	Selectable   *bool          `json:"selectable,omitempty"`   // Se a aresta pode ser selecionada
+	Label        string         `json:"label,omitempty"`        // Label direta da aresta
+	MarkerEnd    string         `json:"markerEnd,omitempty"`    // Marcador de fim (seta)
+	SourceHandle *string        `json:"sourceHandle,omitempty"` // Handle específico do nó fonte
+	TargetHandle *string        `json:"targetHandle,omitempty"` // Handle específico do nó destino
 	// Campos opcionais: markerStart, style, className, etc.
 }
 
