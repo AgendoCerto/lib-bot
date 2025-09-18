@@ -44,7 +44,10 @@ func main() {
 	det := liquid.NoRenderDetector{}
 	reg.Register("message", component.NewMessageFactory(det))
 	reg.Register("confirm", component.NewConfirmFactory(det))
-	// Outros componentes removidos temporariamente para focar no HSM
+	reg.Register("buttons", component.NewButtonsFactory(det))
+	reg.Register("listpicker", component.NewListPickerFactory(det))
+	reg.Register("media", component.NewMediaFactory(det))
+	reg.Register("carousel", component.NewCarouselFactory(det))
 
 	// 3) Adapter real (usa a interface adapter.Adapter)
 	a := selectAdapter(*adapterName)

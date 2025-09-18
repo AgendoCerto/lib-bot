@@ -1,0 +1,456 @@
+{
+  "schema": "flowkit/1.0",
+  "version": {
+    "id": "1.0",
+    "status": "development"
+  },
+  "entries": [
+    {
+      "kind": "global_start",
+      "target": "boas_vindas_hsm"
+    }
+  ],
+  "bot": {
+    "id": "atendimento-clinica",
+    "channels": ["whatsapp"]
+  },
+  "props": {
+    "clinica_nome": "Clínica Saúde & Bem-Estar",
+    "horario_funcionamento": "Segunda a Sexta: 8h às 18h",
+    "telefone_emergencia": "+55 11 9999-9999"
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "boas_vindas_hsm",
+        "kind": "message",
+        "title": "Boas-vindas HSM",
+        "props": {
+          "hsm": {
+            "name": "welcome_clinic_template"
+          }
+        },
+        "x": 100,
+        "y": 100
+      },
+      {
+        "id": "apresentacao_imagem",
+        "kind": "media",
+        "title": "Imagem da Clínica",
+        "props": {
+          "type": "image",
+          "url": "https://example.com/images/clinica-fachada.jpg",
+          "caption": "Bem-vindo à {{props.clinica_nome}}! 🏥\n\nEstamos aqui para cuidar da sua saúde com excelência."
+        },
+        "x": 100,
+        "y": 200
+      },
+      {
+        "id": "menu_principal",
+        "kind": "buttons",
+        "title": "Menu Principal",
+        "props": {
+          "text": "Olá {{user.name | default: 'paciente'}}! 👋\n\nComo posso ajudá-lo hoje?\n\n📋 Escolha uma das opções abaixo:",
+          "buttons": [
+            {
+              "label": "📅 Agendar consulta",
+              "payload": "agendar",
+              "kind": "reply"
+            },
+            {
+              "label": "📋 Meus agendamentos",
+              "payload": "agendamentos",
+              "kind": "reply"
+            },
+            {
+              "label": "🛍️ Nossos planos",
+              "payload": "planos",
+              "kind": "reply"
+            },
+            {
+              "label": "ℹ️ Informações",
+              "payload": "informacoes",
+              "kind": "reply"
+            }
+          ]
+        },
+        "x": 100,
+        "y": 300
+      },
+      {
+        "id": "especialidades_lista",
+        "kind": "listpicker",
+        "title": "Lista de Especialidades",
+        "props": {
+          "text": "📋 Selecione a especialidade para agendar sua consulta:",
+          "button_text": "Ver especialidades",
+          "sections": [
+            {
+              "title": "🩺 Clínica Geral",
+              "items": [
+                {
+                  "id": "clinico_geral",
+                  "title": "Clínico Geral",
+                  "description": "Consulta geral - 30 min"
+                },
+                {
+                  "id": "checkup",
+                  "title": "Check-up Completo", 
+                  "description": "Avaliação completa - 60 min"
+                }
+              ]
+            },
+            {
+              "title": "🦷 Especialidades",
+              "items": [
+                {
+                  "id": "cardiologia",
+                  "title": "Cardiologia",
+                  "description": "Dr. João Silva - 45 min"
+                },
+                {
+                  "id": "dermatologia",
+                  "title": "Dermatologia", 
+                  "description": "Dra. Maria Santos - 30 min"
+                },
+                {
+                  "id": "ortopedia",
+                  "title": "Ortopedia",
+                  "description": "Dr. Pedro Costa - 40 min"
+                }
+              ]
+            }
+          ]
+        },
+        "x": 400,
+        "y": 300
+      },
+      {
+        "id": "agendamento_confirmacao",
+        "kind": "confirm",
+        "title": "Confirmação de Agendamento",
+        "props": {
+          "title": "📅 Confirmar agendamento?\n\n🩺 Especialidade: {{flow.especialidade_selecionada}}\n📅 Data: {{flow.data_selecionada}}\n🕐 Horário: {{flow.horario_selecionado}}\n💰 Valor: R$ {{flow.valor_consulta}}",
+          "yes": "✅ Confirmar",
+          "no": "❌ Cancelar"
+        },
+        "x": 700,
+        "y": 300
+      },
+      {
+        "id": "comprovante_documento",
+        "kind": "media",
+        "title": "Envio de Comprovante",
+        "props": {
+          "type": "document",
+          "url": "https://example.com/docs/comprovante-agendamento.pdf",
+          "caption": "📄 Aqui está seu comprovante de agendamento!\n\n✅ Agendamento confirmado para {{flow.data_selecionada}} às {{flow.horario_selecionado}}",
+          "filename": "comprovante-agendamento-{{user.id}}.pdf"
+        },
+        "x": 1000,
+        "y": 300
+      },
+      {
+        "id": "carousel_planos",
+        "kind": "carousel",
+        "title": "Carrossel de Planos",
+        "props": {
+          "text": "🛍️ Conheça nossos planos e serviços especiais:",
+          "cards": [
+            {
+              "id": "plano_basico",
+              "title": "Plano Básico",
+              "description": "Consultas mensais + exames básicos",
+              "media_url": "https://example.com/images/plano-basico.jpg",
+              "price": "R$ 89,90/mês",
+              "buttons": [
+                {
+                  "label": "💰 Contratar",
+                  "payload": "contratar_basico",
+                  "kind": "reply"
+                },
+                {
+                  "label": "ℹ️ Saiba mais",
+                  "payload": "info_basico",
+                  "kind": "reply"
+                }
+              ]
+            },
+            {
+              "id": "plano_premium",
+              "title": "Plano Premium",
+              "description": "Consultas ilimitadas + exames + especialistas",
+              "media_url": "https://example.com/images/plano-premium.jpg",
+              "price": "R$ 159,90/mês",
+              "buttons": [
+                {
+                  "label": "💎 Contratar",
+                  "payload": "contratar_premium",
+                  "kind": "reply"
+                },
+                {
+                  "label": "📋 Benefícios",
+                  "payload": "beneficios_premium",
+                  "kind": "reply"
+                }
+              ]
+            },
+            {
+              "id": "checkup_executivo",
+              "title": "Check-up Executivo",
+              "description": "Avaliação completa em um só dia",
+              "media_url": "https://example.com/images/checkup-executivo.jpg",
+              "price": "R$ 450,00",
+              "buttons": [
+                {
+                  "label": "📅 Agendar",
+                  "payload": "agendar_checkup",
+                  "kind": "reply"
+                },
+                {
+                  "label": "📋 O que inclui",
+                  "payload": "detalhes_checkup",
+                  "kind": "reply"
+                }
+              ]
+            },
+            {
+              "id": "consulta_domicilio",
+              "title": "Consulta Domiciliar",
+              "description": "Médico especialista vai até você",
+              "media_url": "https://example.com/images/consulta-domicilio.jpg",
+              "price": "R$ 280,00",
+              "buttons": [
+                {
+                  "label": "🏠 Solicitar",
+                  "payload": "solicitar_domicilio",
+                  "kind": "reply"
+                },
+                {
+                  "label": "📍 Área de atendimento",
+                  "payload": "area_atendimento",
+                  "kind": "reply"
+                }
+              ]
+            },
+            {
+              "id": "telemedicina",
+              "title": "Telemedicina",
+              "description": "Consulta online com especialistas",
+              "media_url": "https://example.com/images/telemedicina.jpg",
+              "price": "R$ 80,00",
+              "buttons": [
+                {
+                  "label": "💻 Agendar online",
+                  "payload": "agendar_tele",
+                  "kind": "reply"
+                },
+                {
+                  "label": "🔧 Como funciona",
+                  "payload": "como_funciona_tele",
+                  "kind": "reply"
+                }
+              ]
+            }
+          ]
+        },
+        "x": 400,
+        "y": 600
+      },
+      {
+        "id": "meus_agendamentos",
+        "kind": "message",
+        "title": "Meus Agendamentos",
+        "props": {
+          "text": "📋 Seus agendamentos, {{user.name}}:\n\n{{#each user.agendamentos}}\n📅 {{data}} às {{horario}}\n🩺 {{especialidade}}\n👨‍⚕️ {{medico}}\n{{#unless @last}}---{{/unless}}\n{{/each}}\n\n💡 Para remarcar ou cancelar, entre em contato: {{props.telefone_emergencia}}"
+        },
+        "x": 400,
+        "y": 700
+      },
+      {
+        "id": "informacoes_clinica",
+        "kind": "buttons",
+        "title": "Informações da Clínica", 
+        "props": {
+          "text": "ℹ️ **{{props.clinica_nome}}**\n\n🕐 **Horário de funcionamento:**\n{{props.horario_funcionamento}}\n\n📞 **Contato de emergência:**\n{{props.telefone_emergencia}}\n\n📍 **Endereço:**\nAv. Saúde, 123 - Centro\nSão Paulo - SP\n\nO que você gostaria de saber?",
+          "buttons": [
+            {
+              "label": "📍 Como chegar",
+              "payload": "localizacao",
+              "kind": "reply"
+            },
+            {
+              "label": "🌐 Site da clínica",
+              "kind": "url",
+              "url": "https://clinicasaude.com.br"
+            },
+            {
+              "label": "📞 Ligar agora",
+              "kind": "call",
+              "payload": "+5511999999999"
+            }
+          ]
+        },
+        "x": 400,
+        "y": 800
+      },
+      {
+        "id": "localizacao_mapa",
+        "kind": "media",
+        "title": "Localização no Mapa",
+        "props": {
+          "type": "image",
+          "url": "https://example.com/images/mapa-clinica.png",
+          "caption": "📍 **Como chegar:**\n\n🚇 Metrô: Estação República (Linha Vermelha)\n🚌 Ônibus: Linhas 102, 205, 308\n🚗 Estacionamento: Disponível no local\n\n⏱️ A clínica fica a 5 min da estação de metrô!"
+        },
+        "x": 700,
+        "y": 800
+      },
+      {
+        "id": "audio_instrucoes",
+        "kind": "media",
+        "title": "Áudio com Instruções",
+        "props": {
+          "type": "audio",
+          "url": "https://example.com/audio/instrucoes-chegada.ogg",
+          "caption": "🎧 Ouça as instruções detalhadas de como chegar:"
+        },
+        "x": 700,
+        "y": 950
+      },
+      {
+        "id": "despedida_sticker",
+        "kind": "media",
+        "title": "Despedida",
+        "props": {
+          "type": "sticker",
+          "url": "https://example.com/stickers/obrigado.webp"
+        },
+        "x": 1000,
+        "y": 500
+      },
+      {
+        "id": "finalizar_atendimento",
+        "kind": "message",
+        "title": "Finalização",
+        "props": {
+          "text": "Obrigado por escolher a {{props.clinica_nome}}! 🙏\n\nSe precisar de mais alguma coisa, estarei aqui para ajudar.\n\n💙 Cuide bem da sua saúde!"
+        },
+        "x": 1000,
+        "y": 600,
+        "final": true
+      },
+      {
+        "id": "video_apresentacao",
+        "kind": "media",
+        "title": "Vídeo Institucional",
+        "props": {
+          "type": "video",
+          "url": "https://example.com/videos/clinica-apresentacao.mp4",
+          "caption": "🎥 Conheça nossa estrutura e equipe médica especializada!"
+        },
+        "x": 400,
+        "y": 1000
+      }
+    ],
+    "edges": [
+      {
+        "from": "boas_vindas_hsm",
+        "to": "apresentacao_imagem",
+        "label": "início"
+      },
+      {
+        "from": "apresentacao_imagem",
+        "to": "menu_principal",
+        "label": "continuar"
+      },
+      {
+        "from": "menu_principal",
+        "to": "especialidades_lista",
+        "label": "agendar",
+        "guard": "payload == 'agendar'"
+      },
+      {
+        "from": "menu_principal",
+        "to": "meus_agendamentos", 
+        "label": "agendamentos",
+        "guard": "payload == 'agendamentos'"
+      },
+      {
+        "from": "menu_principal",
+        "to": "carousel_planos",
+        "label": "planos",
+        "guard": "payload == 'planos'"
+      },
+      {
+        "from": "menu_principal",
+        "to": "informacoes_clinica",
+        "label": "informações",
+        "guard": "payload == 'informacoes'"
+      },
+      {
+        "from": "especialidades_lista",
+        "to": "agendamento_confirmacao",
+        "label": "especialidade_selecionada"
+      },
+      {
+        "from": "agendamento_confirmacao",
+        "to": "comprovante_documento",
+        "label": "confirmar",
+        "guard": "payload == 'yes'"
+      },
+      {
+        "from": "agendamento_confirmacao",
+        "to": "menu_principal",
+        "label": "cancelar",
+        "guard": "payload == 'no'"
+      },
+      {
+        "from": "comprovante_documento",
+        "to": "despedida_sticker",
+        "label": "finalizar"
+      },
+      {
+        "from": "meus_agendamentos",
+        "to": "despedida_sticker",
+        "label": "finalizar"
+      },
+      {
+        "from": "carousel_planos",
+        "to": "despedida_sticker",
+        "label": "finalizar"
+      },
+      {
+        "from": "informacoes_clinica",
+        "to": "localizacao_mapa",
+        "label": "localização",
+        "guard": "payload == 'localizacao'"
+      },
+      {
+        "from": "informacoes_clinica",
+        "to": "video_apresentacao",
+        "label": "vídeo"
+      },
+      {
+        "from": "localizacao_mapa",
+        "to": "audio_instrucoes",
+        "label": "detalhes"
+      },
+      {
+        "from": "audio_instrucoes",
+        "to": "despedida_sticker",
+        "label": "finalizar"
+      },
+      {
+        "from": "video_apresentacao",
+        "to": "despedida_sticker",
+        "label": "finalizar"
+      },
+      {
+        "from": "despedida_sticker",
+        "to": "finalizar_atendimento",
+        "label": "fim"
+      }
+    ]
+  }
+}
