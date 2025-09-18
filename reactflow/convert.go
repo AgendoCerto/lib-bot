@@ -221,19 +221,9 @@ func DesignToReactFlowWithAutoLayout(d io.DesignDoc, direction layout.Direction)
 	// Primeiro converte normalmente
 	nodes, edges = DesignToReactFlow(d)
 
-	// Aplica auto-layout se não há posições definidas
-	needsLayout := true
-	for _, node := range nodes {
-		// Se algum nó tem posição definida, assume que o layout já foi feito
-		if node.Position.X != 0 || node.Position.Y != 0 {
-			needsLayout = false
-			break
-		}
-	}
-
-	if needsLayout {
-		nodes = ApplyAutoLayout(d.Graph.Nodes, d.Graph.Edges, nodes, direction)
-	}
+	// Sempre aplica auto-layout quando solicitado explicitamente
+	// (ignorando posições existentes)
+	nodes = ApplyAutoLayout(d.Graph.Nodes, d.Graph.Edges, nodes, direction)
 
 	return nodes, edges
 }

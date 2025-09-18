@@ -84,7 +84,7 @@ type LayoutNode struct {
 	Level  int     // Nível/camada no layout
 }
 
-// AutoLayout aplica algoritmo de auto-layout aos nós
+// AutoLayout aplica algoritmo de posicionamento automático para nós no React Flow
 func AutoLayout(nodes []flow.Node, edges []flow.Edge, config Config) LayoutResult {
 	if len(nodes) == 0 {
 		return LayoutResult{}
@@ -98,7 +98,7 @@ func AutoLayout(nodes []flow.Node, edges []flow.Edge, config Config) LayoutResul
 	levels := calculateLevels(graph, findStartNodes(graph))
 
 	// 3. Organiza nós conectados por nível
-	nodesByLevel := organizeByLevels(connectedNodes, levels)
+	nodesByLevel := organizeByLevels(connectedNodes, levels, edges)
 
 	// 4. Calcula posições dos nós conectados
 	layoutNodes := calculatePositions(nodesByLevel, config)
@@ -158,9 +158,22 @@ func findStartNodes(graph map[flow.ID][]flow.ID) []flow.ID {
 	return startNodes
 }
 
-// calculateLevels calcula o nível de cada nó usando BFS
+// calculateLevels calcula o nível de cada nó usando análise de fluxo inteligente
 func calculateLevels(graph map[flow.ID][]flow.ID, startNodes []flow.ID) map[flow.ID]int {
 	levels := make(map[flow.ID]int)
+	incomingCount := make(map[flow.ID]int)
+
+	// Conta conexões de entrada para cada nó
+	for from, targets := range graph {
+		if _, exists := incomingCount[from]; !exists {
+			incomingCount[from] = 0
+		}
+		for _, to := range targets {
+			incomingCount[to]++
+		}
+	}
+
+	// Processamento topológico modificado para considerar fluxo
 	queue := make([]flow.ID, 0)
 
 	// Inicializa nós de início no nível 0
@@ -169,17 +182,53 @@ func calculateLevels(graph map[flow.ID][]flow.ID, startNodes []flow.ID) map[flow
 		queue = append(queue, startID)
 	}
 
-	// BFS para calcular níveis
+	// Processamento por ondas para criar níveis mais lógicos
 	for len(queue) > 0 {
-		currentID := queue[0]
-		queue = queue[1:]
-		currentLevel := levels[currentID]
+		currentWave := make([]flow.ID, len(queue))
+		copy(currentWave, queue)
+		queue = queue[:0] // limpa para próxima onda
 
-		for _, nextID := range graph[currentID] {
-			nextLevel := currentLevel + 1
-			if existingLevel, exists := levels[nextID]; !exists || nextLevel > existingLevel {
-				levels[nextID] = nextLevel
-				queue = append(queue, nextID)
+		for _, currentID := range currentWave {
+			for _, nextID := range graph[currentID] {
+				// Verifica se todos os predecessores já foram processados
+				allPredecessorsProcessed := true
+				maxPredecessorLevel := -1
+
+				for from, targets := range graph {
+					for _, to := range targets {
+						if to == nextID {
+							if predLevel, exists := levels[from]; exists {
+								if predLevel > maxPredecessorLevel {
+									maxPredecessorLevel = predLevel
+								}
+							} else {
+								allPredecessorsProcessed = false
+								break
+							}
+						}
+					}
+					if !allPredecessorsProcessed {
+						break
+					}
+				}
+
+				if allPredecessorsProcessed {
+					finalLevel := maxPredecessorLevel + 1
+					if existingLevel, exists := levels[nextID]; !exists || finalLevel > existingLevel {
+						levels[nextID] = finalLevel
+						// Adiciona à próxima onda se ainda não foi processado
+						shouldAdd := true
+						for _, id := range queue {
+							if id == nextID {
+								shouldAdd = false
+								break
+							}
+						}
+						if shouldAdd {
+							queue = append(queue, nextID)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -188,7 +237,7 @@ func calculateLevels(graph map[flow.ID][]flow.ID, startNodes []flow.ID) map[flow
 }
 
 // organizeByLevels organiza nós por nível
-func organizeByLevels(nodes []flow.Node, levels map[flow.ID]int) [][]flow.Node {
+func organizeByLevels(nodes []flow.Node, levels map[flow.ID]int, edges []flow.Edge) [][]flow.Node {
 	if len(levels) == 0 {
 		return [][]flow.Node{nodes} // Todos no mesmo nível se não há estrutura
 	}
@@ -210,14 +259,89 @@ func organizeByLevels(nodes []flow.Node, levels map[flow.ID]int) [][]flow.Node {
 		}
 	}
 
-	// Ordena nós dentro de cada nível por ID para consistência
+	// Ordena nós dentro de cada nível baseado em conexões, não apenas ID
 	for i := range nodesByLevel {
-		sort.Slice(nodesByLevel[i], func(a, b int) bool {
-			return string(nodesByLevel[i][a].ID) < string(nodesByLevel[i][b].ID)
-		})
+		organizeNodesInLevel(nodesByLevel[i], edges)
 	}
 
 	return nodesByLevel
+}
+
+// organizeNodesInLevel ordena nós dentro de um nível baseado em suas conexões
+func organizeNodesInLevel(levelNodes []flow.Node, edges []flow.Edge) {
+	if len(levelNodes) <= 1 {
+		return
+	}
+
+	// Constrói mapa de edges para análise de conexões
+	edgeMap := make(map[flow.ID][]flow.ID)
+	incomingEdges := make(map[flow.ID][]flow.ID)
+
+	for _, edge := range edges {
+		edgeMap[edge.From] = append(edgeMap[edge.From], edge.To)
+		incomingEdges[edge.To] = append(incomingEdges[edge.To], edge.From)
+	}
+
+	// Identifica nós que fazem parte de caminhos paralelos
+	// (têm o mesmo predecessor comum)
+	parallelGroups := make(map[flow.ID][]flow.Node)
+
+	for _, node := range levelNodes {
+		// Para cada nó, encontra seus predecessores diretos
+		predecessors := incomingEdges[node.ID]
+
+		// Se tem exatamente um predecessor, pode ser parte de um grupo paralelo
+		if len(predecessors) == 1 {
+			pred := predecessors[0]
+			parallelGroups[pred] = append(parallelGroups[pred], node)
+		}
+	}
+
+	// Ordena baseado na lógica de fluxo melhorada:
+	sort.Slice(levelNodes, func(a, b int) bool {
+		nodeA, nodeB := levelNodes[a], levelNodes[b]
+
+		// Critério 1: Prioridade para nós sequenciais (1 entrada, 1 saída)
+		incomingA, outgoingA := len(incomingEdges[nodeA.ID]), len(edgeMap[nodeA.ID])
+		incomingB, outgoingB := len(incomingEdges[nodeB.ID]), len(edgeMap[nodeB.ID])
+
+		isSequentialA := incomingA == 1 && outgoingA == 1
+		isSequentialB := incomingB == 1 && outgoingB == 1
+
+		if isSequentialA != isSequentialB {
+			return isSequentialA // Sequenciais primeiro
+		}
+
+		// Critério 2: Nós com mais conexões totais (mais importantes no fluxo)
+		totalConnectionsA := incomingA + outgoingA
+		totalConnectionsB := incomingB + outgoingB
+
+		if totalConnectionsA != totalConnectionsB {
+			return totalConnectionsA > totalConnectionsB
+		}
+
+		// Critério 3: Para nós paralelos, ordena por predecessor comum
+		predA := getPrimaryPredecessor(nodeA.ID, incomingEdges)
+		predB := getPrimaryPredecessor(nodeB.ID, incomingEdges)
+
+		if predA != predB {
+			return string(predA) < string(predB)
+		}
+
+		// Critério 4: ID para consistência
+		return string(nodeA.ID) < string(nodeB.ID)
+	})
+}
+
+// getPrimaryPredecessor retorna o predecessor principal de um nó
+func getPrimaryPredecessor(nodeID flow.ID, incomingEdges map[flow.ID][]flow.ID) flow.ID {
+	predecessors := incomingEdges[nodeID]
+	if len(predecessors) == 0 {
+		return ""
+	}
+	// Para simplificar, retorna o primeiro predecessor
+	// Em uma implementação mais sofisticada, poderia analisar qual é o "principal"
+	return predecessors[0]
 }
 
 // separateConnectedAndTrulyIsolated separa nós que têm conexões dos verdadeiramente isolados
