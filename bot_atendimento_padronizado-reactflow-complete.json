@@ -1,0 +1,490 @@
+{
+  "nodes": [
+    {
+      "id": "__start_global",
+      "type": "start",
+      "data": {
+        "entry_kind": "global_start",
+        "final": false,
+        "kind": "start",
+        "target": "boas_vindas",
+        "title": "Início"
+      },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
+      "width": 120,
+      "height": 60,
+      "draggable": true,
+      "selectable": true,
+      "deletable": false,
+      "sourcePosition": "bottom",
+      "targetPosition": "left"
+    },
+    {
+      "id": "boas_vindas",
+      "type": "message",
+      "data": {
+        "final": false,
+        "kind": "message",
+        "props": {
+          "text": "✂️ Olá! Bem-vindo à {{props.barbearia_nome}}!\n\nSou seu assistente virtual e vou te ajudar com o agendamento.\n\nVamos começar?"
+        },
+        "title": "Boas-vindas"
+      },
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "width": 280,
+      "height": 120,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "bottom",
+      "targetPosition": "top"
+    },
+    {
+      "id": "menu_servicos",
+      "type": "buttons",
+      "data": {
+        "final": false,
+        "kind": "buttons",
+        "props": {
+          "buttons": [
+            {
+              "id": "btn_corte",
+              "kind": "reply",
+              "label": "✂️ Corte",
+              "payload": "servico:corte"
+            },
+            {
+              "id": "btn_barba",
+              "kind": "reply",
+              "label": "🧔 Barba",
+              "payload": "servico:barba"
+            },
+            {
+              "id": "btn_completo",
+              "kind": "reply",
+              "label": "👨 Corte + Barba",
+              "payload": "servico:completo"
+            }
+          ],
+          "text": "💈 Qual serviço você gostaria de agendar?",
+          "timeout": {
+            "action": "retry",
+            "duration": 60,
+            "max_attempts": 2,
+            "message": "⏰ Escolha um dos serviços acima."
+          },
+          "validation": {
+            "fallback_text": "Digite:\n1 - Corte\n2 - Barba\n3 - Corte + Barba",
+            "max_attempts": 2,
+            "on_invalid": "retry"
+          }
+        },
+        "title": "Escolher Serviço"
+      },
+      "position": {
+        "x": 100,
+        "y": 280
+      },
+      "width": 300,
+      "height": 200,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "right",
+      "targetPosition": "top"
+    },
+    {
+      "id": "confirmacao_agendamento",
+      "type": "confirm",
+      "data": {
+        "final": false,
+        "kind": "confirm",
+        "props": {
+          "no": "❌ Não",
+          "title": "Confirmar: {{flow.servico_escolhido}}?",
+          "yes": "✅ Sim"
+        },
+        "title": "Confirmar Agendamento"
+      },
+      "position": {
+        "x": 500,
+        "y": 400
+      },
+      "width": 300,
+      "height": 180,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "right",
+      "targetPosition": "top"
+    },
+    {
+      "id": "agendamento_sucesso",
+      "type": "message",
+      "data": {
+        "final": false,
+        "kind": "message",
+        "props": {
+          "text": "🎉 Agendamento confirmado!\n\nServiço: {{flow.servico_escolhido}}\n\nObrigado pela preferência!"
+        },
+        "title": "Sucesso"
+      },
+      "position": {
+        "x": 800,
+        "y": 500
+      },
+      "width": 300,
+      "height": 120,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "bottom",
+      "targetPosition": "top"
+    },
+    {
+      "id": "erro_menu_servicos",
+      "type": "message",
+      "data": {
+        "final": false,
+        "kind": "message",
+        "props": {
+          "text": "❌ Não entendi sua resposta.\n\n💡 Use os botões para escolher o serviço:\n✂️ Corte\n🧔 Barba\n👨 Corte + Barba"
+        },
+        "title": "Erro Menu Serviços"
+      },
+      "position": {
+        "x": 200,
+        "y": 600
+      },
+      "width": 300,
+      "height": 140,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "bottom",
+      "targetPosition": "left"
+    },
+    {
+      "id": "timeout_menu_servicos",
+      "type": "message",
+      "data": {
+        "final": false,
+        "kind": "message",
+        "props": {
+          "text": "⏰ Ainda está aí?\n\nPor favor, escolha um dos serviços disponíveis para continuar."
+        },
+        "title": "Timeout Menu Serviços"
+      },
+      "position": {
+        "x": 600,
+        "y": 600
+      },
+      "width": 300,
+      "height": 140,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "bottom",
+      "targetPosition": "left"
+    },
+    {
+      "id": "erro_confirmacao",
+      "type": "message",
+      "data": {
+        "final": false,
+        "kind": "message",
+        "props": {
+          "text": "❌ Resposta não reconhecida.\n\n💡 Use os botões:\n✅ Sim - para confirmar\n❌ Não - para cancelar"
+        },
+        "title": "Erro Confirmação"
+      },
+      "position": {
+        "x": 700,
+        "y": 700
+      },
+      "width": 300,
+      "height": 140,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "bottom",
+      "targetPosition": "top"
+    },
+    {
+      "id": "timeout_confirmacao",
+      "type": "message",
+      "data": {
+        "final": false,
+        "kind": "message",
+        "props": {
+          "text": "⏰ Preciso da sua confirmação.\n\nDeseja confirmar o agendamento?"
+        },
+        "title": "Timeout Confirmação"
+      },
+      "position": {
+        "x": 1000,
+        "y": 700
+      },
+      "width": 300,
+      "height": 140,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "bottom",
+      "targetPosition": "left"
+    },
+    {
+      "id": "agendamento_cancelado",
+      "type": "message",
+      "data": {
+        "final": false,
+        "kind": "message",
+        "props": {
+          "text": "❌ Agendamento cancelado.\n\n😊 Você pode agendar novamente quando quiser.\n\n📞 Contato: {{props.telefone}}\n\n🙏 Obrigado!"
+        },
+        "title": "Agendamento Cancelado"
+      },
+      "position": {
+        "x": 500,
+        "y": 800
+      },
+      "width": 300,
+      "height": 160,
+      "draggable": true,
+      "selectable": true,
+      "deletable": true,
+      "sourcePosition": "bottom",
+      "targetPosition": "top"
+    }
+  ],
+  "edges": [
+    {
+      "id": "__edge_start_boas_vindas",
+      "source": "__start_global",
+      "target": "boas_vindas",
+      "type": "default",
+      "animated": false,
+      "deletable": false,
+      "selectable": true,
+      "label": "início",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e0_boas_vindas_menu_servicos",
+      "source": "boas_vindas",
+      "target": "menu_servicos",
+      "type": "default",
+      "data": {
+        "label": "complete"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "complete",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e1_menu_servicos_confirmacao_agendamento",
+      "source": "menu_servicos",
+      "target": "confirmacao_agendamento",
+      "type": "default",
+      "data": {
+        "label": "btn_corte"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "btn_corte",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e2_menu_servicos_confirmacao_agendamento",
+      "source": "menu_servicos",
+      "target": "confirmacao_agendamento",
+      "type": "default",
+      "data": {
+        "label": "btn_barba"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "btn_barba",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e3_menu_servicos_confirmacao_agendamento",
+      "source": "menu_servicos",
+      "target": "confirmacao_agendamento",
+      "type": "default",
+      "data": {
+        "label": "btn_completo"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "btn_completo",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e4_confirmacao_agendamento_agendamento_sucesso",
+      "source": "confirmacao_agendamento",
+      "target": "agendamento_sucesso",
+      "type": "default",
+      "data": {
+        "label": "confirmed"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "confirmed",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e5_confirmacao_agendamento_agendamento_cancelado",
+      "source": "confirmacao_agendamento",
+      "target": "agendamento_cancelado",
+      "type": "default",
+      "data": {
+        "label": "cancelled"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "cancelled",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e6_confirmacao_agendamento_timeout_confirmacao",
+      "source": "confirmacao_agendamento",
+      "target": "timeout_confirmacao",
+      "type": "default",
+      "data": {
+        "label": "timeout"
+      },
+      "animated": true,
+      "deletable": true,
+      "selectable": true,
+      "label": "timeout",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "right",
+      "targetHandle": "left"
+    },
+    {
+      "id": "e7_menu_servicos_erro_menu_servicos",
+      "source": "menu_servicos",
+      "target": "erro_menu_servicos",
+      "type": "default",
+      "data": {
+        "label": "invalid"
+      },
+      "animated": true,
+      "deletable": true,
+      "selectable": true,
+      "label": "invalid",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "right",
+      "targetHandle": "left"
+    },
+    {
+      "id": "e8_menu_servicos_timeout_menu_servicos",
+      "source": "menu_servicos",
+      "target": "timeout_menu_servicos",
+      "type": "default",
+      "data": {
+        "label": "timeout"
+      },
+      "animated": true,
+      "deletable": true,
+      "selectable": true,
+      "label": "timeout",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "right",
+      "targetHandle": "left"
+    },
+    {
+      "id": "e9_erro_menu_servicos_menu_servicos",
+      "source": "erro_menu_servicos",
+      "target": "menu_servicos",
+      "type": "default",
+      "data": {
+        "label": "complete"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "complete",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e10_timeout_menu_servicos_menu_servicos",
+      "source": "timeout_menu_servicos",
+      "target": "menu_servicos",
+      "type": "default",
+      "data": {
+        "label": "complete"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "complete",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    },
+    {
+      "id": "e11_timeout_confirmacao_confirmacao_agendamento",
+      "source": "timeout_confirmacao",
+      "target": "confirmacao_agendamento",
+      "type": "default",
+      "data": {
+        "label": "complete"
+      },
+      "animated": false,
+      "deletable": true,
+      "selectable": true,
+      "label": "complete",
+      "markerEnd": "arrowclosed",
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
+    }
+  ],
+  "defaultEdgeOptions": {
+    "type": "default",
+    "markerEnd": "arrowclosed",
+    "deletable": true,
+    "selectable": true
+  },
+  "defaultNodeOptions": {
+    "draggable": true,
+    "selectable": true,
+    "sourcePosition": "right",
+    "targetPosition": "left"
+  },
+  "layout": {
+    "direction": "TB",
+    "applied": false,
+    "algorithm": "hierarchical"
+  }
+}

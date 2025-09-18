@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"lib-bot/liquid"
+	"lib-bot/persistence"
 	"lib-bot/runtime"
 )
 
@@ -73,27 +74,38 @@ func (f *ConfirmFactory) New(_ string, props map[string]any) (Component, error) 
 		return nil, err
 	}
 
-	return &ConfirmWithBehavior{
-		confirm:  c,
-		behavior: behavior,
+	// Parse persistence
+	persistence, err := ParsePersistence(props)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ConfirmWithBehaviorAndPersistence{
+		confirm:     c,
+		behavior:    behavior,
+		persistence: persistence,
 	}, nil
 }
 
-// ConfirmWithBehavior é um wrapper que inclui behaviors
-type ConfirmWithBehavior struct {
-	confirm  *Confirm
-	behavior *ComponentBehavior
+// ConfirmWithBehaviorAndPersistence é um wrapper que inclui behaviors e persistência
+type ConfirmWithBehaviorAndPersistence struct {
+	confirm     *Confirm
+	behavior    *ComponentBehavior
+	persistence *persistence.PersistenceConfig
 }
 
-func (cwb *ConfirmWithBehavior) Kind() string {
-	return cwb.confirm.Kind()
+func (cwbp *ConfirmWithBehaviorAndPersistence) Kind() string {
+	return cwbp.confirm.Kind()
 }
 
-func (cwb *ConfirmWithBehavior) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
-	spec, err := cwb.confirm.Spec(ctx, rctx)
+func (cwbp *ConfirmWithBehaviorAndPersistence) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := cwbp.confirm.Spec(ctx, rctx)
 	if err != nil {
 		return spec, err
 	}
-	spec.Behavior = cwb.behavior
+
+	spec.Behavior = cwbp.behavior
+	spec.Persistence = cwbp.persistence
+
 	return spec, nil
 }

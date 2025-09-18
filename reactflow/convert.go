@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"lib-bot/component"
 	"lib-bot/flow"
 	"lib-bot/io"
 	"lib-bot/layout"
@@ -195,6 +196,7 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 	}
 
 	// Continua com os nós regulares
+
 	for _, n := range d.Graph.Nodes {
 		data := map[string]any{
 			"kind":  n.Kind,
@@ -211,6 +213,85 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 		} else if len(n.Props) > 0 {
 			data["props"] = n.Props
 		}
+
+		// Adiciona informações de persistência se disponíveis
+		var availableKeys []string
+		// WhatsApp defaults
+		availableKeys = append(availableKeys, "context.wa_phone", "context.wa_name")
+
+		if n.PropsRef != "" {
+			if refProps, exists := d.Props[n.PropsRef]; exists {
+				if refPropsMap, ok := refProps.(map[string]any); ok {
+					persistenceConfig, err := component.ParsePersistence(refPropsMap)
+					if err == nil && persistenceConfig != nil {
+						persistenceData := map[string]any{
+							"enabled": persistenceConfig.Enabled,
+							"scope":   string(persistenceConfig.Scope),
+							"key":     persistenceConfig.Key,
+						}
+						if persistenceConfig.Sanitization != nil {
+							persistenceData["sanitization"] = map[string]any{
+								"type":         string(persistenceConfig.Sanitization.Type),
+								"custom_regex": persistenceConfig.Sanitization.CustomRegex,
+								"replacement":  persistenceConfig.Sanitization.Replacement,
+								"description":  persistenceConfig.Sanitization.Description,
+								"strict_mode":  persistenceConfig.Sanitization.StrictMode,
+							}
+						}
+						if persistenceConfig.Required {
+							persistenceData["required"] = persistenceConfig.Required
+						}
+						if persistenceConfig.DefaultValue != "" {
+							persistenceData["default_value"] = persistenceConfig.DefaultValue
+						}
+						data["persistence"] = persistenceData
+						// Add key to availableKeys
+						if persistenceConfig.Key != "" {
+							if persistenceConfig.Scope == "context" {
+								availableKeys = append(availableKeys, "context."+persistenceConfig.Key)
+							} else if persistenceConfig.Scope == "profile" {
+								availableKeys = append(availableKeys, "profile."+persistenceConfig.Key)
+							}
+						}
+					}
+				}
+			}
+		} else if len(n.Props) > 0 {
+			persistenceConfig, err := component.ParsePersistence(n.Props)
+			if err == nil && persistenceConfig != nil {
+				persistenceData := map[string]any{
+					"enabled": persistenceConfig.Enabled,
+					"scope":   string(persistenceConfig.Scope),
+					"key":     persistenceConfig.Key,
+				}
+				if persistenceConfig.Sanitization != nil {
+					persistenceData["sanitization"] = map[string]any{
+						"type":         string(persistenceConfig.Sanitization.Type),
+						"custom_regex": persistenceConfig.Sanitization.CustomRegex,
+						"replacement":  persistenceConfig.Sanitization.Replacement,
+						"description":  persistenceConfig.Sanitization.Description,
+						"strict_mode":  persistenceConfig.Sanitization.StrictMode,
+					}
+				}
+				if persistenceConfig.Required {
+					persistenceData["required"] = persistenceConfig.Required
+				}
+				if persistenceConfig.DefaultValue != "" {
+					persistenceData["default_value"] = persistenceConfig.DefaultValue
+				}
+				data["persistence"] = persistenceData
+				// Add key to availableKeys
+				if persistenceConfig.Key != "" {
+					if persistenceConfig.Scope == "context" {
+						availableKeys = append(availableKeys, "context."+persistenceConfig.Key)
+					} else if persistenceConfig.Scope == "profile" {
+						availableKeys = append(availableKeys, "profile."+persistenceConfig.Key)
+					}
+				}
+			}
+		}
+		// Expose availableKeys for frontend
+		data["available_keys"] = availableKeys
 
 		// Usa coordenadas persistidas se disponíveis, senão padrão (0,0)
 		pos := Position{X: 0, Y: 0}
@@ -363,8 +444,37 @@ func ReactFlowToDesign(nodes []Node, edges []Edge, base io.DesignDoc) io.DesignD
 		// props_ref tem prioridade caso exista
 		if pr, ok := n.Data["props_ref"].(string); ok && pr != "" {
 			fn.PropsRef = pr
+
+			// Se há informações de persistência no data para um props_ref,
+			// atualizamos as props referenciais no design base
+			if persistenceData, hasPersistence := n.Data["persistence"].(map[string]any); hasPersistence {
+				if out.Props == nil {
+					out.Props = make(map[string]any)
+				}
+				if refProps, exists := out.Props[pr]; exists {
+					if refPropsMap, ok := refProps.(map[string]any); ok {
+						refPropsMap["persistence"] = persistenceData
+						out.Props[pr] = refPropsMap
+					}
+				}
+			}
 		} else if p, ok := n.Data["props"].(map[string]any); ok && p != nil {
 			fn.Props = p
+
+			// Se há informações de persistência no data, inclui no props
+			if persistenceData, hasPersistence := n.Data["persistence"].(map[string]any); hasPersistence {
+				if fn.Props == nil {
+					fn.Props = make(map[string]any)
+				}
+				fn.Props["persistence"] = persistenceData
+			}
+		} else {
+			// Se não há props mas há persistência, cria props apenas com persistência
+			if persistenceData, hasPersistence := n.Data["persistence"].(map[string]any); hasPersistence {
+				fn.Props = map[string]any{
+					"persistence": persistenceData,
+				}
+			}
 		}
 		if f, ok := n.Data["final"].(bool); ok {
 			fn.Final = f

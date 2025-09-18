@@ -6,6 +6,7 @@ import (
 
 	"lib-bot/hsm"
 	"lib-bot/liquid"
+	"lib-bot/persistence"
 	"lib-bot/runtime"
 )
 
@@ -74,13 +75,14 @@ type ComponentBehavior struct {
 
 // ComponentSpec é o modelo canônico de um componente (sem renderização final)
 type ComponentSpec struct {
-	Kind     string             `json:"kind"`                // Tipo do componente (message, confirm, etc.)
-	Text     *TextValue         `json:"text,omitempty"`      // Texto principal
-	MediaURL string             `json:"media_url,omitempty"` // URL de mídia (imagem, vídeo, etc.)
-	Buttons  []Button           `json:"buttons,omitempty"`   // Botões interativos
-	HSM      *hsm.HSMTemplate   `json:"hsm,omitempty"`       // Configuração de HSM simplificado
-	Behavior *ComponentBehavior `json:"behavior,omitempty"`  // Configurações de comportamento
-	Meta     map[string]any     `json:"meta,omitempty"`      // Metadados adicionais
+	Kind        string                         `json:"kind"`                  // Tipo do componente (message, confirm, etc.)
+	Text        *TextValue                     `json:"text,omitempty"`        // Texto principal
+	MediaURL    string                         `json:"media_url,omitempty"`   // URL de mídia (imagem, vídeo, etc.)
+	Buttons     []Button                       `json:"buttons,omitempty"`     // Botões interativos
+	HSM         *hsm.HSMTemplate               `json:"hsm,omitempty"`         // Configuração de HSM simplificado
+	Behavior    *ComponentBehavior             `json:"behavior,omitempty"`    // Configurações de comportamento
+	Persistence *persistence.PersistenceConfig `json:"persistence,omitempty"` // Configuração de persistência
+	Meta        map[string]any                 `json:"meta,omitempty"`        // Metadados adicionais
 }
 
 // Component interface para geração de specs canônicos (apenas parsing, sem render)
@@ -357,4 +359,75 @@ func parseCompatFallback(raw map[string]any, det liquid.Detector) (*TimeoutBehav
 	}
 
 	return timeout, validation, nil
+}
+
+// ParsePersistence extrai configuração de persistência das props
+func ParsePersistence(props map[string]any) (*persistence.PersistenceConfig, error) {
+	persistenceRaw, hasPersistence := props["persistence"]
+	if !hasPersistence {
+		return nil, nil
+	}
+
+	persistenceMap, ok := persistenceRaw.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	config := &persistence.PersistenceConfig{}
+
+	// Enabled
+	if enabled, ok := persistenceMap["enabled"].(bool); ok {
+		config.Enabled = enabled
+	}
+
+	// Scope
+	if scope, ok := persistenceMap["scope"].(string); ok {
+		config.Scope = persistence.Scope(scope)
+	}
+
+	// Key
+	if key, ok := persistenceMap["key"].(string); ok {
+		config.Key = key
+	}
+
+	// Required
+	if required, ok := persistenceMap["required"].(bool); ok {
+		config.Required = required
+	}
+
+	// Default value
+	if defaultValue, ok := persistenceMap["default_value"].(string); ok {
+		config.DefaultValue = defaultValue
+	}
+
+	// Sanitization
+	if sanitizationRaw, hasSanitization := persistenceMap["sanitization"]; hasSanitization {
+		if sanitizationMap, ok := sanitizationRaw.(map[string]any); ok {
+			sanitization := &persistence.SanitizationConfig{}
+
+			if sanitizationType, ok := sanitizationMap["type"].(string); ok {
+				sanitization.Type = persistence.SanitizationType(sanitizationType)
+			}
+
+			if customRegex, ok := sanitizationMap["custom_regex"].(string); ok {
+				sanitization.CustomRegex = customRegex
+			}
+
+			if replacement, ok := sanitizationMap["replacement"].(string); ok {
+				sanitization.Replacement = replacement
+			}
+
+			if description, ok := sanitizationMap["description"].(string); ok {
+				sanitization.Description = description
+			}
+
+			if strictMode, ok := sanitizationMap["strict_mode"].(bool); ok {
+				sanitization.StrictMode = strictMode
+			}
+
+			config.Sanitization = sanitization
+		}
+	}
+
+	return config, nil
 }

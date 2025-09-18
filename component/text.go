@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"lib-bot/liquid"
+	"lib-bot/persistence"
 	"lib-bot/runtime"
 )
 
@@ -86,6 +87,8 @@ func (f *TextFactory) New(_ string, props map[string]any) (Component, error) {
 	// Configura corpo da mensagem
 	if body, _ := props["body"].(string); body != "" {
 		t = t.WithBody(body)
+	} else if text, _ := props["text"].(string); text != "" {
+		t = t.WithBody(text)
 	}
 
 	// Configura preview de URL
@@ -93,5 +96,38 @@ func (f *TextFactory) New(_ string, props map[string]any) (Component, error) {
 		t = t.WithPreviewURL(preview)
 	}
 
-	return t, nil
+	// Parse persistence
+	persistence, err := ParsePersistence(props)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TextWithBehaviorAndPersistence{
+		text:        t,
+		behavior:    nil, // Pode ser expandido futuramente
+		persistence: persistence,
+	}, nil
+}
+
+// TextWithBehaviorAndPersistence é um wrapper que inclui behaviors e persistência
+type TextWithBehaviorAndPersistence struct {
+	text        *Text
+	behavior    *ComponentBehavior
+	persistence *persistence.PersistenceConfig
+}
+
+func (twbp *TextWithBehaviorAndPersistence) Kind() string {
+	return twbp.text.Kind()
+}
+
+func (twbp *TextWithBehaviorAndPersistence) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := twbp.text.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+
+	spec.Behavior = twbp.behavior
+	spec.Persistence = twbp.persistence
+
+	return spec, nil
 }
