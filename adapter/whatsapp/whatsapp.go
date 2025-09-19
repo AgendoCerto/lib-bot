@@ -16,13 +16,13 @@ type WhatsApp struct{ caps adapter.Capabilities }
 func New() *WhatsApp {
 	c := adapter.NewCaps()
 	c.SupportsHSM = true                                                      // WhatsApp suporta HSM
-	c.SupportsRichText = false                                                // Sem formatação rica
+	c.SupportsRichText = true                                                 // Rich text será processado pelo sistema final
 	c.MaxTextLen = 1024                                                       // Limite de texto do WhatsApp
 	c.MaxButtons = 3                                                          // Máximo 3 botões
 	c.ButtonKinds = map[string]bool{"reply": true, "url": true, "call": true} // Tipos suportados
 	c.SupportsListPicker = true                                               // Suporte a listas
 
-	// Limitações específicas do WhatsApp
+	// Limitações específicas do WhatsApp para validação
 	c.MaxListItems = 10      // Máximo 10 itens por lista/seção
 	c.MaxListSections = 10   // Máximo 10 seções
 	c.MaxButtonTitleLen = 24 // Máximo 24 caracteres no título do botão
@@ -62,11 +62,6 @@ func (w *WhatsApp) Transform(_ context.Context, spec component.ComponentSpec) (c
 
 // transformMessage aplica transformações específicas para mensagens
 func (w *WhatsApp) transformMessage(spec component.ComponentSpec) (component.ComponentSpec, error) {
-	// Trunca texto se exceder limite
-	if spec.Text != nil && len(spec.Text.Raw) > w.caps.MaxTextLen {
-		spec.Text.Raw = spec.Text.Raw[:w.caps.MaxTextLen]
-	}
-
 	// Configura metadata para diferentes tipos de mensagem WhatsApp
 	if spec.Meta == nil {
 		spec.Meta = make(map[string]any)
@@ -90,19 +85,10 @@ func (w *WhatsApp) transformMessage(spec component.ComponentSpec) (component.Com
 
 // transformButtons aplica transformações para botões interativos
 func (w *WhatsApp) transformButtons(spec component.ComponentSpec) (component.ComponentSpec, error) {
-	// Limita número de botões conforme capabilities
-	if len(spec.Buttons) > w.caps.MaxButtons {
-		spec.Buttons = spec.Buttons[:w.caps.MaxButtons]
-	}
-
-	// Filtra tipos de botão não suportados e aplica limitações de tamanho
+	// Filtra apenas tipos de botão suportados (sem truncar ou limitar quantidade)
 	out := make([]component.Button, 0, len(spec.Buttons))
 	for _, b := range spec.Buttons {
 		if w.caps.ButtonKinds[b.Kind] {
-			// Trunca título do botão se necessário
-			if len(b.Label.Raw) > w.caps.MaxButtonTitleLen {
-				b.Label.Raw = b.Label.Raw[:w.caps.MaxButtonTitleLen]
-			}
 			out = append(out, b)
 		}
 	}
@@ -123,9 +109,6 @@ func (w *WhatsApp) transformListPicker(spec component.ComponentSpec) (component.
 	if spec.Meta == nil {
 		spec.Meta = make(map[string]any)
 	}
-
-	// Aplica limitações específicas do WhatsApp para listas
-	w.applyMetaLimitations(spec.Meta)
 
 	spec.Meta["whatsapp_type"] = "interactive"
 	spec.Meta["interactive_type"] = "list"
@@ -152,14 +135,14 @@ func (w *WhatsApp) transformCarousel(spec component.ComponentSpec) (component.Co
 
 // transformGeneric aplica transformações básicas para tipos genéricos
 func (w *WhatsApp) transformGeneric(spec component.ComponentSpec) (component.ComponentSpec, error) {
-	// Trunca texto se exceder limite
-	if spec.Text != nil && len(spec.Text.Raw) > w.caps.MaxTextLen {
-		spec.Text.Raw = spec.Text.Raw[:w.caps.MaxTextLen]
+	// Apenas configura metadados básicos, sem modificar conteúdo
+	if spec.Meta == nil {
+		spec.Meta = make(map[string]any)
 	}
 
-	// Limita botões se presentes
-	if len(spec.Buttons) > w.caps.MaxButtons {
-		spec.Buttons = spec.Buttons[:w.caps.MaxButtons]
+	// Define tipo básico se ainda não definido
+	if spec.Meta["whatsapp_type"] == nil {
+		spec.Meta["whatsapp_type"] = "text"
 	}
 
 	return spec, nil
@@ -192,32 +175,4 @@ func (w *WhatsApp) detectMediaType(url string) string {
 // contains função utilitária para verificar substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr
-}
-
-// applyMetaLimitations aplica limitações do WhatsApp em campos de metadata
-func (w *WhatsApp) applyMetaLimitations(meta map[string]any) {
-	// Limita items em listas
-	if items, ok := meta["items"].([]any); ok && len(items) > w.caps.MaxListItems {
-		meta["items"] = items[:w.caps.MaxListItems]
-	}
-
-	// Limita seções em listas
-	if sections, ok := meta["sections"].([]any); ok && len(sections) > w.caps.MaxListSections {
-		meta["sections"] = sections[:w.caps.MaxListSections]
-	}
-
-	// Trunca footer se muito longo
-	if footer, ok := meta["footer"].(string); ok && len(footer) > w.caps.MaxFooterLen {
-		meta["footer"] = footer[:w.caps.MaxFooterLen]
-	}
-
-	// Trunca header se muito longo
-	if header, ok := meta["header"].(string); ok && len(header) > w.caps.MaxHeaderLen {
-		meta["header"] = header[:w.caps.MaxHeaderLen]
-	}
-
-	// Trunca descrições se muito longas
-	if desc, ok := meta["description"].(string); ok && len(desc) > w.caps.MaxDescriptionLen {
-		meta["description"] = desc[:w.caps.MaxDescriptionLen]
-	}
 }

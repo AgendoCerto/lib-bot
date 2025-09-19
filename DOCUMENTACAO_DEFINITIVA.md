@@ -42,7 +42,7 @@ A **lib-bot** é um framework Go para criação de chatbots baseado em JSON que 
 
 ### Arquitetura de Limitações
 
-**CRÍTICO:** Cada adapter impõe limitações específicas que são aplicadas **automaticamente** durante a transformação. O adapter WhatsApp é o mais restritivo e todas as validações consideram essas limitações antes da compilação.
+**CRÍTICO:** Cada adapter define capabilities específicas que são usadas **apenas para validação** durante a compilação. O adapter WhatsApp **não modifica o conteúdo** - apenas configura metadados e valida conformidade. O processamento final (truncagem, formatação, etc.) será feito pelo sistema que interpretar o plano executável.
 
 ### Sistema de Compilação
 
@@ -51,11 +51,11 @@ A compilação segue um pipeline rigoroso:
 1. **Parsing**: Design JSON é convertido em estruturas internas
 2. **Registry**: Componentes são criados via factories registradas
 3. **Specs**: Cada componente gera seu ComponentSpec canônico
-4. **Transformação**: Adapter aplica limitações específicas
-5. **Validação**: Pipeline de 7 etapas verifica conformidade
+4. **Transformação**: Adapter adiciona metadados específicos (sem modificar conteúdo)
+5. **Validação**: Pipeline de 7 etapas verifica conformidade com capabilities
 6. **Plano**: Resultado final pronto para execução
 
-O sistema garante que nenhum plano seja gerado com erros de validação críticos.
+O sistema garante que nenhum plano seja gerado com erros de validação críticos, mas preserva todo o conteúdo original para processamento posterior.
 
 ---
 
@@ -128,31 +128,31 @@ O sistema garante que nenhum plano seja gerado com erros de validação crítico
 
 ## Limitações Críticas do Adapter WhatsApp
 
-### Limitações Aplicadas Automaticamente
+### Capabilities para Validação
 
-O adapter WhatsApp aplica as seguintes limitações **automaticamente** durante a transformação:
+O adapter WhatsApp define capabilities específicas que são usadas **apenas para validação** durante a compilação:
 
 #### 1. Limitações de Texto
-- **MaxTextLen**: 1024 caracteres (texto truncado automaticamente)
-- **Sem Rich Text**: Formatação Markdown removida automaticamente
-- **Preview URLs**: Habilitado por padrão para links
+- **MaxTextLen**: 1024 caracteres (validado, não truncado)
+- **SupportsRichText**: `true` (Rich text preservado para processamento posterior)
+- **Preview URLs**: Configurado via metadados
 
 #### 2. Limitações de Botões
-- **MaxButtons**: 3 botões por mensagem (extras removidos)
-- **MaxButtonTitleLen**: 24 caracteres (truncado automaticamente)
+- **MaxButtons**: 3 botões por mensagem (validado via pipeline)
+- **MaxButtonTitleLen**: 24 caracteres (validado, não truncado)
 - **ButtonKinds permitidos**: `reply`, `url`, `call`
 - **ButtonKinds removidos**: Tipos não suportados são filtrados automaticamente
 
 #### 3. Limitações de Listas
-- **MaxListItems**: 10 itens por seção (extras removidos)
-- **MaxListSections**: 10 seções por lista (extras removidas)
-- **MaxDescriptionLen**: 72 caracteres nas descrições
-- **MaxFooterLen**: 60 caracteres no footer
-- **MaxHeaderLen**: 60 caracteres no header
+- **MaxListItems**: 10 itens por seção (validado via pipeline)
+- **MaxListSections**: 10 seções por lista (validado via pipeline)
+- **MaxDescriptionLen**: 72 caracteres (validado, não truncado)
+- **MaxFooterLen**: 60 caracteres (validado, não truncado)
+- **MaxHeaderLen**: 60 caracteres (validado, não truncado)
 
 #### 4. Limitações de Carrossel
-- **Transformação automática**: Carrossel vira `product_list` do WhatsApp
-- **Limitações de cards**: Aplicadas conforme capabilities do adapter
+- **Transformação de metadados**: Carrossel recebe metadata `product_list` do WhatsApp
+- **Conteúdo preservado**: Cards mantidos integralmente
 
 #### 5. Limitações de HSM
 - **SupportsHSM**: `true` (WhatsApp suporta templates)
@@ -161,43 +161,57 @@ O adapter WhatsApp aplica as seguintes limitações **automaticamente** durante 
 #### 6. Limitações de Mídia
 - **Detecção automática**: Tipo de mídia detectado pela extensão da URL
 - **Tipos suportados**: image, video, audio, document, sticker
-- **Caption**: Limitado a 1024 caracteres
+- **Caption**: Validado contra limite de 1024 caracteres
 
 #### 7. Metadados WhatsApp
-O adapter adiciona automaticamente metadados específicos:
+O adapter adiciona automaticamente metadados específicos (sem modificar conteúdo):
 - `whatsapp_type`: text|interactive|template|image|video|audio|document|sticker
 - `interactive_type`: button|list|product_list
 - `preview_url`: true (para links)
 - `template_name`: nome do HSM quando aplicável
 
-#### 4. Limitações de Media
-- **Tipos suportados**: image, video, audio, document, sticker
-- **Detecção automática**: Baseada na extensão do arquivo
-- **Media URL obrigatória**: Componentes de mídia devem ter URL válida
+### Filosofia de Processamento
 
-### Exemplo de Transformação Automática
+**IMPORTANTE**: A lib-bot **não modifica conteúdo**. Ela apenas:
+1. **Valida** conformidade com capabilities
+2. **Adiciona metadados** para o sistema final
+3. **Filtra** tipos não suportados
+4. **Preserva** todo o conteúdo original (texto, rich text, etc.)
+
+O processamento final (truncagem, formatação, rendering) é responsabilidade do sistema que interpreta o plano executável.
+
+### Exemplo de Processamento Correto
 
 ```go
-// ENTRADA: 5 botões com títulos longos
+// ENTRADA: Design com conteúdo rico
 {
   "buttons": [
     {"label": "Este título é muito longo para o WhatsApp Business API", "payload": "btn1"},
     {"label": "Outro título extremamente longo", "payload": "btn2"},
     {"label": "Terceiro botão", "payload": "btn3"},
-    {"label": "Quarto botão (será removido)", "payload": "btn4"},
-    {"label": "Quinto botão (será removido)", "payload": "btn5"}
+    {"label": "Quarto botão", "payload": "btn4"},
+    {"label": "Quinto botão", "payload": "btn5"}
   ]
 }
 
-// SAÍDA: Após transformação automática
+// SAÍDA: Após transformação (metadados adicionados, conteúdo preservado)
 {
   "buttons": [
-    {"label": "Este título é muito lon", "payload": "btn1"}, // Truncado
-    {"label": "Outro título extremam", "payload": "btn2"},   // Truncado
-    {"label": "Terceiro botão", "payload": "btn3"}          // Inalterado
-  ]
-  // botões 4 e 5 removidos automaticamente
+    {"label": "Este título é muito longo para o WhatsApp Business API", "payload": "btn1"}, // Preservado
+    {"label": "Outro título extremamente longo", "payload": "btn2"},                        // Preservado
+    {"label": "Terceiro botão", "payload": "btn3"},                                         // Preservado
+    {"label": "Quarto botão", "payload": "btn4"},                                           // Preservado
+    {"label": "Quinto botão", "payload": "btn5"}                                            // Preservado
+  ],
+  "meta": {
+    "whatsapp_type": "interactive",
+    "interactive_type": "button"
+  }
 }
+
+// VALIDAÇÃO: Pipeline detecta excesso de botões (5 > 3) e títulos longos (> 24 chars)
+// Issues: [warn] "Too many buttons for WhatsApp", [warn] "Button titles exceed limit"
+// RESULTADO: Plano é gerado com warnings, processamento final fará ajustes necessários
 ```
 
 ---
@@ -531,15 +545,16 @@ O adapter WhatsApp disponibiliza automaticamente:
 {
   "kind": "message",
   "props": {
-    "text": "Texto da mensagem (máx 1024 chars no WhatsApp)"
+    "text": "Olá! **Bem-vindo** ao nosso atendimento. _Como posso ajudar?_ (Rich text preservado)"
   }
 }
 ```
 
-**Limitações WhatsApp aplicadas**:
-- Texto truncado para 1024 caracteres
-- Rich text removido
-- URLs com preview habilitado
+**Processamento WhatsApp**:
+- Rich text **preservado** integralmente (não removido)
+- Metadados adicionados (whatsapp_type: "text")
+- Preview de URLs habilitado via metadata
+- Validação de limite (1024 chars) **sem truncagem**
 
 **Outputs padrão**: `complete`
 
@@ -596,29 +611,36 @@ O adapter WhatsApp disponibiliza automaticamente:
     "text": "Escolha uma opção:",
     "buttons": [
       {
-        "label": "Opção 1",        // Máx 24 chars
+        "label": "Suporte Técnico Especializado",  // Preservado mesmo sendo > 24 chars
         "payload": "opcao_1", 
         "kind": "reply"
       },
       {
-        "label": "🌐 Site",
+        "label": "🌐 Acessar Website Completo",    // Preservado mesmo sendo > 24 chars
         "url": "https://exemplo.com",
         "kind": "url"
       },
       {
-        "label": "📞 Ligar",
+        "label": "📞 Ligar Diretamente",           // Preservado mesmo sendo > 24 chars
         "payload": "call:+5511999999999",
         "kind": "call"
+      },
+      {
+        "label": "Quarto Botão",                   // Preservado mesmo excedendo limite de 3
+        "payload": "opcao_4",
+        "kind": "reply"
       }
     ]
   }
 }
 ```
 
-**Limitações WhatsApp aplicadas**:
-- Máximo 3 botões
-- Labels truncados para 24 caracteres
-- Apenas kinds: `reply`, `url`, `call`
+**Processamento WhatsApp**:
+- Botões **preservados** integralmente (mesmo excedendo 3)
+- Labels **não truncados** (preservam conteúdo original)
+- Apenas kinds suportados mantidos (`reply`, `url`, `call`)
+- Metadados adicionados para processamento final
+- Validação gera warnings sobre limites excedidos
 
 **Outputs**: Baseados nos payloads dos botões + `timeout`, `invalid`
 
@@ -649,15 +671,15 @@ O adapter WhatsApp disponibiliza automaticamente:
   "kind": "listpicker",
   "props": {
     "text": "Escolha uma opção:",
-    "button_text": "Ver Opções",    // Máx 24 chars
+    "button_text": "Ver Todas as Opções Disponíveis",    // Preservado mesmo sendo > 24 chars
     "sections": [
       {
-        "title": "Seção 1",       // Máx 60 chars
+        "title": "Seção de Produtos Eletrônicos Premium",       // Preservado mesmo sendo > 60 chars
         "items": [
           {
             "id": "item_1",
-            "title": "Item 1",     // Máx 24 chars
-            "description": "Descrição do item"  // Máx 72 chars
+            "title": "Smartphone Premium de Última Geração",     // Preservado mesmo sendo > 24 chars
+            "description": "Confira nossa seleção completa de smartphones com as mais avançadas tecnologias e recursos disponíveis no mercado brasileiro atual"  // Preservado mesmo sendo > 72 chars
           }
         ]
       }
@@ -666,10 +688,11 @@ O adapter WhatsApp disponibiliza automaticamente:
 }
 ```
 
-**Limitações WhatsApp aplicadas**:
-- Máximo 10 seções
-- Máximo 10 itens por seção
-- Títulos, descrições truncados conforme limites
+**Processamento WhatsApp**:
+- Seções e itens **preservados** integralmente (mesmo excedendo limites)
+- Títulos e descrições **não truncados**
+- Validação gera warnings sobre limites excedidos
+- Metadados adicionados para processamento final
 
 **Outputs obrigatórios**: Devem mapear EXATAMENTE os IDs dos itens:
 ```json
@@ -1808,13 +1831,32 @@ type PatchApplier interface {
 4. **Nós inalcançáveis**: Sem incoming edges (exceto entry points e HSM)
 5. **Rich text no WhatsApp**: Será removido automaticamente
 
-#### 🔧 Limitações Aplicadas Automaticamente
+#### 🔧 Validações Aplicadas (Sem Modificar Conteúdo)
 
-1. **Texto truncado**: 1024 chars no WhatsApp
-2. **Botões limitados**: Máximo 3, títulos 24 chars
-3. **Lists limitadas**: 10 seções, 10 itens, descrições 72 chars
-4. **Filtros Liquid**: Apenas upcase, downcase, capitalize permitidos por padrão
-5. **Media types**: Auto-detectados por extensão
+1. **Texto validado**: Limite de 1024 chars no WhatsApp (gera warning se excedido)
+2. **Botões validados**: Máximo 3, títulos 24 chars (gera warning se excedido)
+3. **Lists validadas**: 10 seções, 10 itens, descrições 72 chars (gera warning se excedido)
+4. **Filtros Liquid**: Apenas filtros permitidos passam na validação
+5. **Media types**: Auto-detectados por extensão mas URL preservada
+6. **Rich text**: Preservado integralmente para processamento posterior
+
+### Filosofia Arquitetural
+
+#### ✅ O que a lib-bot FAZ:
+- **Valida** conformidade com capabilities dos adapters
+- **Adiciona metadados** para o sistema final
+- **Filtra** tipos não suportados (ex: button kinds)
+- **Preserva** todo o conteúdo original
+- **Gera warnings** quando limites são excedidos
+- **Compila** planos executáveis válidos
+
+#### ❌ O que a lib-bot NÃO FAZ:
+- **Não trunca** texto ou conteúdo
+- **Não remove** rich text ou formatação
+- **Não limita** quantidade de itens/botões
+- **Não modifica** labels ou descrições
+- **Não renderiza** templates Liquid
+- **Não processa** mídias ou arquivos
 
 ### Boas Práticas
 
