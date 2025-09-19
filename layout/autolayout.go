@@ -566,7 +566,7 @@ func positionFallbackNodes(nodes []flow.Node, levelIndex int, config Config) []L
 			x = config.StartX + 400 + float64(i)*fallbackSpacing
 			y = config.StartY + float64(levelIndex)*config.LevelSpacing
 		} else {
-			// Nós de fallback ficam abaixo do fluxo principal  
+			// Nós de fallback ficam abaixo do fluxo principal
 			x = config.StartX + float64(levelIndex)*config.LevelSpacing
 			y = config.StartY + 300 + float64(i)*fallbackSpacing
 		}

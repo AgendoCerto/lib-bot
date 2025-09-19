@@ -154,7 +154,7 @@ func writeJSON(v any, pretty bool, outFile string) {
 
 	if outFile != "" {
 		// Escreve para arquivo
-		err = os.WriteFile(outFile, b, 0644)
+		err = os.WriteFile(outFile, b, 0o644)
 		must(err)
 		fmt.Fprintf(os.Stderr, "Arquivo gerado: %s\n", outFile)
 	} else {

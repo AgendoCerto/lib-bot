@@ -1,125 +1,186 @@
+// Package store provides atomic operations for document storage and versioning.
 package store
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"time"
-
-	"lib-bot/adapter"
-	"lib-bot/compile"
-	"lib-bot/component"
-	"lib-bot/io"
-	"lib-bot/validate"
 )
 
-type Versioned struct {
-	ID       string
-	Status   string // development|production
-	Checksum string
-	Data     []byte // Design JSON normalizado
-}
-
-type Repo interface {
-	GetActiveProduction(botID string) (Versioned, error)
-	GetDraft(botID string) (Versioned, error)
-	CommitDraft(botID string, v Versioned) error // atomic write (ETag/If-Match)
-	Promote(botID, versionID string) error       // single flip
-}
-
-type Patcher interface {
-	ApplyJSONPatch(doc []byte, patchOps []byte) ([]byte, error) // RFC6902
-}
-
+// Service provides atomic operations for document management.
 type Service struct {
-	R Repo
-	C compile.Compiler
-	P Patcher
+	repository Repository
+	compiler   DesignCompiler
+	patcher    PatchApplier
+	versionGen VersionIDGenerator
+	normalizer JSONNormalizer
+	validator  ValidationChecker
 }
 
-func (s Service) ApplyAtomic(botID string, patchOps []byte, reg componentRegistry, a adapter.Adapter) (newVersionID string, plan []byte, issues []validate.Issue, err error) {
-	if s.R == nil || s.C == nil || s.P == nil {
-		return "", nil, nil, errors.New("store.Service not properly configured")
+// NewService creates a new service with all required dependencies.
+func NewService(
+	repo Repository,
+	compiler DesignCompiler,
+	patcher PatchApplier,
+	versionGen VersionIDGenerator,
+	normalizer JSONNormalizer,
+	validator ValidationChecker,
+) *Service {
+	return &Service{
+		repository: repo,
+		compiler:   compiler,
+		patcher:    patcher,
+		versionGen: versionGen,
+		normalizer: normalizer,
+		validator:  validator,
 	}
-	draft, err := s.R.GetDraft(botID)
+}
+
+// ApplyAtomic applies JSON patch operations atomically to a bot's draft.
+func (s *Service) ApplyAtomic(
+	ctx context.Context,
+	botID string,
+	patchOps []byte,
+	registry ComponentRegistry,
+	adapter Adapter,
+) (newVersionID string, plan []byte, issues []ValidationIssue, err error) {
+	if err := s.validateDependencies(); err != nil {
+		return "", nil, nil, err
+	}
+
+	draft, err := s.repository.GetDraft(ctx, botID)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, fmt.Errorf("failed to get draft: %w", err)
 	}
 
-	newDoc, err := s.P.ApplyJSONPatch(draft.Data, patchOps)
+	patchedDoc, err := s.patcher.ApplyJSONPatch(ctx, draft.Data, patchOps)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, fmt.Errorf("failed to apply patch: %w", err)
 	}
 
-	var design io.DesignDoc
-	if err := json.Unmarshal(newDoc, &design); err != nil {
-		return "", nil, nil, err
-	}
-
-	planAny, _, issues, err := s.C.Compile(ctxNoop{}, design, reg.registry, a)
+	planData, issues, err := s.compileAndValidate(ctx, patchedDoc, registry, adapter)
 	if err != nil {
 		return "", nil, issues, err
 	}
 
-	// bloqueia commit se houver erro de validação
-	for _, is := range issues {
-		if is.Severity == validate.Err {
-			return "", nil, issues, ErrInvalid{Issues: issues}
+	if s.validator.HasErrors(issues) {
+		return "", nil, issues, ValidationError{Issues: issues}
+	}
+
+	newVersionID, err = s.commitNewVersion(ctx, botID, patchedDoc)
+	if err != nil {
+		return "", nil, issues, fmt.Errorf("failed to commit version: %w", err)
+	}
+
+	return newVersionID, planData, issues, nil
+}
+
+// validateDependencies checks if all required dependencies are configured.
+func (s *Service) validateDependencies() error {
+	if s.repository == nil || s.compiler == nil || s.patcher == nil ||
+		s.versionGen == nil || s.normalizer == nil || s.validator == nil {
+		return ErrServiceNotConfigured
+	}
+
+	return nil
+}
+
+// compileAndValidate compiles the design and validates it.
+func (s *Service) compileAndValidate(
+	ctx context.Context,
+	docData []byte,
+	registry ComponentRegistry,
+	adapter Adapter,
+) ([]byte, []ValidationIssue, error) {
+	var design interface{}
+	if err := json.Unmarshal(docData, &design); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal design: %w", err)
+	}
+
+	planData, _, issues, err := s.compiler.Compile(ctx, design, registry.GetRegistry(), adapter)
+	if err != nil {
+		return nil, issues, fmt.Errorf("compilation failed: %w", err)
+	}
+
+	planJSON, err := json.Marshal(planData)
+	if err != nil {
+		return nil, issues, fmt.Errorf("failed to marshal plan: %w", err)
+	}
+
+	return planJSON, issues, nil
+}
+
+// commitNewVersion creates and commits a new version.
+func (s *Service) commitNewVersion(ctx context.Context, botID string, docData []byte) (string, error) {
+	newVersion := Versioned{
+		ID:       s.versionGen.Generate(),
+		Status:   "development",
+		Checksum: "", // Optional; Compiler already returns checksum in plan
+		Data:     s.normalizer.Normalize(docData),
+	}
+
+	if err := s.repository.CommitDraft(ctx, botID, newVersion); err != nil {
+		return "", fmt.Errorf("failed to commit draft: %w", err)
+	}
+
+	return newVersion.ID, nil
+}
+
+// DefaultVersionIDGenerator provides default version ID generation.
+type DefaultVersionIDGenerator struct{}
+
+// Generate creates a new version ID.
+func (g DefaultVersionIDGenerator) Generate() string {
+	// Simple ULID-like ID (timestamp base36 + nanos base36) – replace with oklog/ulid if needed.
+	timestamp := time.Now().UTC().UnixNano()
+	return "01" + base36(uint64(timestamp))
+}
+
+// DefaultJSONNormalizer provides default JSON normalization.
+type DefaultJSONNormalizer struct{}
+
+// Normalize normalizes JSON data.
+func (n DefaultJSONNormalizer) Normalize(data []byte) []byte {
+	var value interface{}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return data // Return original data if unmarshal fails
+	}
+
+	normalized, err := json.Marshal(value)
+	if err != nil {
+		return data // Return original data if marshal fails
+	}
+
+	return normalized
+}
+
+// DefaultValidationChecker provides default validation checking.
+type DefaultValidationChecker struct{}
+
+// HasErrors checks if validation issues contain errors.
+func (c DefaultValidationChecker) HasErrors(issues []ValidationIssue) bool {
+	for _, issue := range issues {
+		if issue.Severity == "error" {
+			return true
 		}
 	}
 
-	planJSON, _ := json.Marshal(planAny)
-
-	newVersion := Versioned{
-		ID:       newULID(),
-		Status:   "development",
-		Checksum: "", // opcional; Compiler já retorna checksum no plan
-		Data:     normalizeJSON(newDoc),
-	}
-	if err := s.R.CommitDraft(botID, newVersion); err != nil {
-		return "", nil, issues, err
-	}
-	return newVersion.ID, planJSON, issues, nil
+	return false
 }
 
-type ErrInvalid struct{ Issues []validate.Issue }
-
-func (e ErrInvalid) Error() string { return "validation failed" }
-
-// Helpers (mínimos, sem deps externas)
-type ctxNoop struct{}
-
-func (ctxNoop) Deadline() (deadline time.Time, ok bool) { return }
-func (ctxNoop) Done() <-chan struct{}                   { return nil }
-func (ctxNoop) Err() error                              { return nil }
-func (ctxNoop) Value(key any) any                       { return nil }
-
-func newULID() string {
-	// ULID simples fakeado (timestamp base36 + nanos base36) – substitua por oklog/ulid se quiser.
-	ts := time.Now().UTC().UnixNano()
-	return "01" + base36(uint64(ts))
-}
-
-func base36(u uint64) string {
+// base36 converts a uint64 to base36 string.
+func base36(number uint64) string {
 	const chars = "0123456789abcdefghijklmnopqrstuvwxyz"
-	if u == 0 {
+	if number == 0 {
 		return "0"
 	}
-	out := []byte{}
-	for u > 0 {
-		out = append([]byte{chars[u%36]}, out...)
-		u /= 36
+
+	var result []byte
+	for number > 0 {
+		result = append([]byte{chars[number%36]}, result...)
+		number /= 36
 	}
-	return string(out)
-}
 
-func normalizeJSON(b []byte) []byte {
-	var v any
-	_ = json.Unmarshal(b, &v)
-	nb, _ := json.Marshal(v)
-	return nb
-}
-
-// componentRegistry é um adaptador leve para evitar dependência cíclica
-type componentRegistry struct {
-	registry *component.Registry
+	return string(result)
 }

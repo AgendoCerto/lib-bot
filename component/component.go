@@ -75,14 +75,14 @@ type ComponentBehavior struct {
 
 // ComponentSpec é o modelo canônico de um componente (sem renderização final)
 type ComponentSpec struct {
-	Kind        string                         `json:"kind"`                  // Tipo do componente (message, confirm, etc.)
-	Text        *TextValue                     `json:"text,omitempty"`        // Texto principal
-	MediaURL    string                         `json:"media_url,omitempty"`   // URL de mídia (imagem, vídeo, etc.)
-	Buttons     []Button                       `json:"buttons,omitempty"`     // Botões interativos
-	HSM         *hsm.HSMTemplate               `json:"hsm,omitempty"`         // Configuração de HSM simplificado
-	Behavior    *ComponentBehavior             `json:"behavior,omitempty"`    // Configurações de comportamento
-	Persistence *persistence.PersistenceConfig `json:"persistence,omitempty"` // Configuração de persistência
-	Meta        map[string]any                 `json:"meta,omitempty"`        // Metadados adicionais
+	Kind        string              `json:"kind"`                  // Tipo do componente (message, confirm, etc.)
+	Text        *TextValue          `json:"text,omitempty"`        // Texto principal
+	MediaURL    string              `json:"media_url,omitempty"`   // URL de mídia (imagem, vídeo, etc.)
+	Buttons     []Button            `json:"buttons,omitempty"`     // Botões interativos
+	HSM         *hsm.HSMTemplate    `json:"hsm,omitempty"`         // Configuração de HSM simplificado
+	Behavior    *ComponentBehavior  `json:"behavior,omitempty"`    // Configurações de comportamento
+	Persistence *persistence.Config `json:"persistence,omitempty"` // Configuração de persistência
+	Meta        map[string]any      `json:"meta,omitempty"`        // Metadados adicionais
 }
 
 // Component interface para geração de specs canônicos (apenas parsing, sem render)
@@ -362,7 +362,7 @@ func parseCompatFallback(raw map[string]any, det liquid.Detector) (*TimeoutBehav
 }
 
 // ParsePersistence extrai configuração de persistência das props
-func ParsePersistence(props map[string]any) (*persistence.PersistenceConfig, error) {
+func ParsePersistence(props map[string]any) (*persistence.Config, error) {
 	persistenceRaw, hasPersistence := props["persistence"]
 	if !hasPersistence {
 		return nil, nil
@@ -373,7 +373,7 @@ func ParsePersistence(props map[string]any) (*persistence.PersistenceConfig, err
 		return nil, nil
 	}
 
-	config := &persistence.PersistenceConfig{}
+	config := &persistence.Config{}
 
 	// Enabled
 	if enabled, ok := persistenceMap["enabled"].(bool); ok {

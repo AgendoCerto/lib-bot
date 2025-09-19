@@ -113,7 +113,7 @@ func (f *TextFactory) New(_ string, props map[string]any) (Component, error) {
 type TextWithBehaviorAndPersistence struct {
 	text        *Text
 	behavior    *ComponentBehavior
-	persistence *persistence.PersistenceConfig
+	persistence *persistence.Config
 }
 
 func (twbp *TextWithBehaviorAndPersistence) Kind() string {

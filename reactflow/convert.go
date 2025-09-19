@@ -400,7 +400,7 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 
 	// Combina edges de início com edges regulares
 	edges = append(edges, regularEdges...)
-	return
+	return nodes, edges
 }
 
 // ReactFlowToDesign converte nós/arestas do React Flow de volta para DesignDoc interno

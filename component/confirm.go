@@ -91,7 +91,7 @@ func (f *ConfirmFactory) New(_ string, props map[string]any) (Component, error) 
 type ConfirmWithBehaviorAndPersistence struct {
 	confirm     *Confirm
 	behavior    *ComponentBehavior
-	persistence *persistence.PersistenceConfig
+	persistence *persistence.Config
 }
 
 func (cwbp *ConfirmWithBehaviorAndPersistence) Kind() string {
