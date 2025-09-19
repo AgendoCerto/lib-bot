@@ -3,8 +3,8 @@ package component
 import (
 	"context"
 
-	"lib-bot/liquid"
-	"lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/liquid"
+	"github.com/AgendoCerto/lib-bot/runtime"
 )
 
 // ListPicker componente para listas de seleção (menu interativo)

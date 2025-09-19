@@ -1,4 +1,4 @@
-module lib-bot
+module github.com/AgendoCerto/lib-bot
 
 go 1.24.6
 

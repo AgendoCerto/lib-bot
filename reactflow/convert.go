@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"lib-bot/component"
-	"lib-bot/flow"
-	"lib-bot/io"
-	"lib-bot/layout"
+	"github.com/AgendoCerto/lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/layout"
 )
 
 // isFallbackEdge detecta se uma edge é de fallback/retry/timeout

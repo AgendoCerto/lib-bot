@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 
-	"lib-bot/adapter"
-	"lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/adapter"
+	"github.com/AgendoCerto/lib-bot/component"
 )
 
 // WhatsApp adapter para WhatsApp Business API

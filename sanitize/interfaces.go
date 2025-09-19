@@ -1,7 +1,7 @@
 // Package sanitize provides interfaces for data sanitization.
 package sanitize
 
-import "lib-bot/persistence"
+import "github.com/AgendoCerto/lib-bot/persistence"
 
 // TextExtractor extracts specific types of text from input.
 type TextExtractor interface {

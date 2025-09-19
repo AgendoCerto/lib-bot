@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // BotManager demonstra como usar os serviços juntos

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // DocumentationComplianceStep valida conformidade com especificações da documentação

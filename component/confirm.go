@@ -3,9 +3,9 @@ package component
 import (
 	"context"
 
-	"lib-bot/liquid"
-	"lib-bot/persistence"
-	"lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/liquid"
+	"github.com/AgendoCerto/lib-bot/persistence"
+	"github.com/AgendoCerto/lib-bot/runtime"
 )
 
 type Confirm struct {

@@ -1,9 +1,9 @@
 package validate
 
 import (
-	"lib-bot/adapter"
-	"lib-bot/component"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/adapter"
+	"github.com/AgendoCerto/lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 type Severity string

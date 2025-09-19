@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // LiquidLengthStep valida limites de caracteres considerando expansão de templates Liquid

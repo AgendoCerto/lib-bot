@@ -3,8 +3,8 @@ package component
 import (
 	"context"
 
-	"lib-bot/liquid"
-	"lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/liquid"
+	"github.com/AgendoCerto/lib-bot/runtime"
 )
 
 // Media componente para envio de mídias (imagem, vídeo, áudio, documento)

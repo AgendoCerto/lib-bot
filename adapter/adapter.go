@@ -4,7 +4,7 @@ package adapter
 import (
 	"context"
 
-	"lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/component"
 )
 
 // Adapter interface para transformação de specs por canal específico (sem renderização)

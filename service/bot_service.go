@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // BotService é o serviço principal que unifica todas as operações de bot

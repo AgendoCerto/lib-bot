@@ -1,10 +1,10 @@
 package validate
 
 import (
-	"lib-bot/adapter"
-	"lib-bot/component"
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/adapter"
+	"github.com/AgendoCerto/lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // TopologyValidator valida a topologia e estrutura do fluxo

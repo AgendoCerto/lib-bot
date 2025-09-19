@@ -3,9 +3,9 @@ package component
 import (
 	"context"
 
-	"lib-bot/hsm"
-	"lib-bot/liquid"
-	"lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/hsm"
+	"github.com/AgendoCerto/lib-bot/liquid"
+	"github.com/AgendoCerto/lib-bot/runtime"
 )
 
 // Message componente para mensagens de texto simples ou HSM

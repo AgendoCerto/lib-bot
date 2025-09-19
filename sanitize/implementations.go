@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"lib-bot/persistence"
+	"github.com/AgendoCerto/lib-bot/persistence"
 )
 
 // Static errors for better error handling.

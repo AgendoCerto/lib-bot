@@ -3,8 +3,8 @@ package validate
 import (
 	"fmt"
 
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // OutputMappingStep valida que todos os outputs mapeiam corretamente para elementos interativos

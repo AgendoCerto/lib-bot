@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 
-	"lib-bot/adapter"
-	"lib-bot/component"
-	"lib-bot/io"
-	"lib-bot/liquid"
-	"lib-bot/runtime"
-	"lib-bot/validate"
+	"github.com/AgendoCerto/lib-bot/adapter"
+	"github.com/AgendoCerto/lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/liquid"
+	"github.com/AgendoCerto/lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/validate"
 )
 
 // Hasher interface para geração de checksums de design

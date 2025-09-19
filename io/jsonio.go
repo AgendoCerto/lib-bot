@@ -4,7 +4,7 @@ package io
 import (
 	"encoding/json"
 
-	"lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/flow"
 )
 
 // Codec define interface para codificação/decodificação de documentos

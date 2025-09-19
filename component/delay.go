@@ -4,7 +4,7 @@ import (
 	"context"
 	"strconv"
 
-	"lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/runtime"
 )
 
 // DelayView representa um componente de delay/pausa

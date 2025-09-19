@@ -10,13 +10,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"lib-bot/adapter"
-	"lib-bot/adapter/whatsapp"
-	"lib-bot/compile"
-	"lib-bot/component"
-	"lib-bot/io"
-	rf "lib-bot/reactflow"
-	"lib-bot/validate"
+	"github.com/AgendoCerto/lib-bot/adapter"
+	"github.com/AgendoCerto/lib-bot/adapter/whatsapp"
+	"github.com/AgendoCerto/lib-bot/compile"
+	"github.com/AgendoCerto/lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/io"
+	rf "github.com/AgendoCerto/lib-bot/reactflow"
+	"github.com/AgendoCerto/lib-bot/validate"
 )
 
 func main() {

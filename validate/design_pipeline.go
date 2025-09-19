@@ -1,7 +1,7 @@
 package validate
 
 import (
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // DesignValidator interface para validação de design completo

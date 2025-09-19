@@ -5,11 +5,11 @@ import (
 	"regexp"
 	"strings"
 
-	"lib-bot/adapter"
-	"lib-bot/adapter/whatsapp"
-	"lib-bot/component"
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/adapter"
+	"github.com/AgendoCerto/lib-bot/adapter/whatsapp"
+	"github.com/AgendoCerto/lib-bot/component"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // AdapterComplianceStep valida se specs estão em conformidade com capabilities do adapter

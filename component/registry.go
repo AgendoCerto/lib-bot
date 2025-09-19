@@ -1,6 +1,6 @@
 package component
 
-import "lib-bot/liquid"
+import "github.com/AgendoCerto/lib-bot/liquid"
 
 // SimpleFactory implementa Factory para componentes simples
 type SimpleFactory struct {

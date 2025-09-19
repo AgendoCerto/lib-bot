@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"lib-bot/io"
-	"lib-bot/store"
+	"github.com/AgendoCerto/lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/store"
 )
 
 // StoreService é responsável por versionamento e persistência simples

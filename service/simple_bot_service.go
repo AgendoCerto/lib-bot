@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"lib-bot/flow"
-	"lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
 )
 
 // SimpleBotService versão simplificada que manipula designs diretamente

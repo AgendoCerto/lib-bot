@@ -23,7 +23,7 @@
 
 ## Visão Geral e Arquitetura
 
-A **lib-bot** é um framework Go para criação de chatbots baseado em JSON que compila designs para diferentes adapters (WhatsApp Business API, etc.). O sistema é construído em camadas:
+A **github.com/AgendoCerto/lib-bot** é um framework Go para criação de chatbots baseado em JSON que compila designs para diferentes adapters (WhatsApp Business API, etc.). O sistema é construído em camadas:
 
 **Pipeline de Processamento:**
 1. **Design JSON** → 2. **Validação** → 3. **Compilação** → 4. **Plano de Execução**
@@ -172,7 +172,7 @@ O adapter adiciona automaticamente metadados específicos (sem modificar conteú
 
 ### Filosofia de Processamento
 
-**IMPORTANTE**: A lib-bot **não modifica conteúdo**. Ela apenas:
+**IMPORTANTE**: A github.com/AgendoCerto/lib-bot **não modifica conteúdo**. Ela apenas:
 1. **Valida** conformidade com capabilities
 2. **Adiciona metadados** para o sistema final
 3. **Filtra** tipos não suportados
@@ -864,7 +864,7 @@ O adapter WhatsApp disponibiliza automaticamente:
 
 ### Pipeline de Validação Completo
 
-A lib-bot implementa um sistema de validação em 7 etapas que garante conformidade completa:
+A github.com/AgendoCerto/lib-bot implementa um sistema de validação em 7 etapas que garante conformidade completa:
 
 1. **LiquidStep**: Valida templates Liquid e variáveis
    - Verifica variáveis não reconhecidas
@@ -1648,7 +1648,7 @@ O sistema está preparado para múltiplos adapters, mas atualmente apenas WhatsA
 
 ### Conversão para Editor Visual
 
-A lib-bot converte automaticamente designs para formato React Flow, permitindo edição visual.
+A github.com/AgendoCerto/lib-bot converte automaticamente designs para formato React Flow, permitindo edição visual.
 
 #### Estrutura React Flow
 ```json
@@ -1782,7 +1782,7 @@ O algoritmo separa automaticamente:
 
 ### Sistema de Versionamento e Store
 
-A lib-bot implementa um sistema completo de versionamento para designs:
+A github.com/AgendoCerto/lib-bot implementa um sistema completo de versionamento para designs:
 
 #### Interfaces de Store
 ```go
@@ -1842,7 +1842,7 @@ type PatchApplier interface {
 
 ### Filosofia Arquitetural
 
-#### ✅ O que a lib-bot FAZ:
+#### ✅ O que a github.com/AgendoCerto/lib-bot FAZ:
 - **Valida** conformidade com capabilities dos adapters
 - **Adiciona metadados** para o sistema final
 - **Filtra** tipos não suportados (ex: button kinds)
@@ -1850,7 +1850,7 @@ type PatchApplier interface {
 - **Gera warnings** quando limites são excedidos
 - **Compila** planos executáveis válidos
 
-#### ❌ O que a lib-bot NÃO FAZ:
+#### ❌ O que a github.com/AgendoCerto/lib-bot NÃO FAZ:
 - **Não trunca** texto ou conteúdo
 - **Não remove** rich text ou formatação
 - **Não limita** quantidade de itens/botões
@@ -2007,7 +2007,7 @@ type PatchApplier interface {
 
 ### Arquitetura Zero-Dependencies
 
-A lib-bot foi projetada com **zero dependências externas**:
+A github.com/AgendoCerto/lib-bot foi projetada com **zero dependências externas**:
 - ✅ **Apenas Go standard library**
 - ✅ **SHA256 simplificado** (placeholder sem crypto/sha256)
 - ✅ **JSON parsing nativo**
@@ -2016,7 +2016,7 @@ A lib-bot foi projetada com **zero dependências externas**:
 
 ### Conclusão
 
-A **lib-bot** é um framework completo e robusto para criação de chatbots com:
+A **github.com/AgendoCerto/lib-bot** é um framework completo e robusto para criação de chatbots com:
 
 - ✅ **Arquitetura sólida** com separação clara de responsabilidades
 - ✅ **Validação rigorosa** com pipeline de 7 etapas
@@ -2029,4 +2029,4 @@ A **lib-bot** é um framework completo e robusto para criação de chatbots com:
 - ✅ **CLI completa** com múltiplas opções de saída
 - ✅ **Zero dependências** para máxima portabilidade
 
-A documentação é **extremamente fiel** às regras de negócio da biblioteca e serve como referência completa para desenvolvimento de chatbots usando a lib-bot.
+A documentação é **extremamente fiel** às regras de negócio da biblioteca e serve como referência completa para desenvolvimento de chatbots usando a github.com/AgendoCerto/lib-bot.

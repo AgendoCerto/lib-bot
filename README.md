@@ -11,7 +11,7 @@ A Lib-Bot oferece dois serviços principais para criação e manipulação de bo
 Manipulação direta e rápida para a maioria dos casos de uso.
 
 ```go
-import "lib-bot/service"
+import "github.com/AgendoCerto/lib-bot/service"
 
 // Criar serviço
 sbs := service.NewSimpleBotService()
@@ -133,7 +133,7 @@ package main
 import (
     "context"
     "fmt"
-    "lib-bot/service"
+    "github.com/AgendoCerto/lib-bot/service"
 )
 
 func main() {

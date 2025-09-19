@@ -1,7 +1,7 @@
 package layout
 
 import (
-	"lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/flow"
 )
 
 type Direction string

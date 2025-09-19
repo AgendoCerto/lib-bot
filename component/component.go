@@ -4,10 +4,10 @@ package component
 import (
 	"context"
 
-	"lib-bot/hsm"
-	"lib-bot/liquid"
-	"lib-bot/persistence"
-	"lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/hsm"
+	"github.com/AgendoCerto/lib-bot/liquid"
+	"github.com/AgendoCerto/lib-bot/persistence"
+	"github.com/AgendoCerto/lib-bot/runtime"
 )
 
 // TextValue armazena texto com suporte a templates Liquid (sem renderização)

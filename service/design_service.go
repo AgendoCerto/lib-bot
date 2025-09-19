@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"lib-bot/flow"
-	"lib-bot/io"
-	"lib-bot/store"
+	"github.com/AgendoCerto/lib-bot/flow"
+	"github.com/AgendoCerto/lib-bot/io"
+	"github.com/AgendoCerto/lib-bot/store"
 )
 
 // DesignService é responsável por operações CRUD em designs de bots
