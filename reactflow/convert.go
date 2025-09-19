@@ -21,18 +21,12 @@ func isFallbackEdge(e flow.Edge) bool {
 // getEdgeHandles determina handles específicos para uma edge baseado na direção
 func getEdgeHandles(e flow.Edge, direction layout.Direction) (sourceHandle, targetHandle string) {
 	isFallback := isFallbackEdge(e)
-	isLoop := string(e.From) == string(e.To)
 
 	if direction == layout.DirectionHorizontal {
 		// Layout horizontal: fluxo normal left->right, fallbacks top/bottom
 		if isFallback {
-			if isLoop {
-				sourceHandle = "bottom"
-				targetHandle = "top"
-			} else {
-				sourceHandle = "bottom"
-				targetHandle = "top"
-			}
+			sourceHandle = "bottom"
+			targetHandle = "top"
 		} else {
 			sourceHandle = "right"
 			targetHandle = "left"
@@ -40,13 +34,8 @@ func getEdgeHandles(e flow.Edge, direction layout.Direction) (sourceHandle, targ
 	} else {
 		// Layout vertical: fluxo normal top->bottom, fallbacks left/right
 		if isFallback {
-			if isLoop {
-				sourceHandle = "right"
-				targetHandle = "left"
-			} else {
-				sourceHandle = "right"
-				targetHandle = "left"
-			}
+			sourceHandle = "right"
+			targetHandle = "left"
 		} else {
 			sourceHandle = "bottom"
 			targetHandle = "top"

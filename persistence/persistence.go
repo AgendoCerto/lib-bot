@@ -376,7 +376,7 @@ func (s DefaultSanitizer) sanitizeBRL(input string) (string, error) {
 	var value float64
 	_, err := fmt.Sscanf(match, "%f", &value)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrInvalidMonetaryValue, err)
+		return "", fmt.Errorf("%w: %w", ErrInvalidMonetaryValue, err)
 	}
 
 	return fmt.Sprintf("R$ %.2f", value), nil
@@ -391,7 +391,7 @@ func (s DefaultSanitizer) getDateWithTimezone(config SanitizationConfig) (string
 
 	location, err := time.LoadLocation(tz)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrInvalidTimezone, err)
+		return "", fmt.Errorf("%w: %w", ErrInvalidTimezone, err)
 	}
 
 	now := time.Now().In(location)

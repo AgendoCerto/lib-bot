@@ -187,11 +187,6 @@ func (s *DocumentationComplianceStep) validateProps(props map[string]any) []Issu
 	return issues
 }
 
-// validateGraph valida estrutura do grafo
-func (s *DocumentationComplianceStep) validateGraph(graph io.Graph) []Issue {
-	return s.validateGraphWithEntries(graph, nil)
-}
-
 // validateGraphWithEntries valida estrutura do grafo considerando entry points
 func (s *DocumentationComplianceStep) validateGraphWithEntries(graph io.Graph, entries []flow.Entry) []Issue {
 	var issues []Issue
@@ -347,11 +342,6 @@ func (s *DocumentationComplianceStep) validateEdge(edge flow.Edge, nodeIDs map[f
 	}
 
 	return issues
-}
-
-// validateConnectivity valida conectividade do grafo
-func (s *DocumentationComplianceStep) validateConnectivity(graph io.Graph) []Issue {
-	return s.validateConnectivityWithEntries(graph, nil)
 }
 
 // validateConnectivityWithEntries valida conectividade do grafo considerando entry points

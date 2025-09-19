@@ -72,14 +72,15 @@ func (w *WhatsApp) transformMessage(spec component.ComponentSpec) (component.Com
 		spec.Meta = make(map[string]any)
 	}
 
-	// Se tem mídia, configura tipo específico
-	if spec.MediaURL != "" {
+	// Define tipo de mensagem baseado no conteúdo
+	switch {
+	case spec.MediaURL != "":
 		spec.Meta["whatsapp_type"] = w.detectMediaType(spec.MediaURL)
 		spec.Meta["media_url"] = spec.MediaURL
-	} else if spec.HSM != nil {
+	case spec.HSM != nil:
 		spec.Meta["whatsapp_type"] = "template"
 		spec.Meta["template_name"] = spec.HSM.Name
-	} else {
+	default:
 		spec.Meta["whatsapp_type"] = "text"
 		spec.Meta["preview_url"] = true // Habilita preview de links por padrão
 	}

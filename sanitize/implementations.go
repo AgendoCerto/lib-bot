@@ -148,7 +148,7 @@ func (f *DefaultFormatter) formatBRL(input string) (string, error) {
 	var value float64
 	_, err := fmt.Sscanf(match, "%f", &value)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrInvalidMonetary, err)
+		return "", fmt.Errorf("%w: %w", ErrInvalidMonetary, err)
 	}
 
 	return fmt.Sprintf("R$ %.2f", value), nil

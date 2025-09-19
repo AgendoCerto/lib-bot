@@ -22,7 +22,7 @@ func NewRFC6902Patcher() *RFC6902Patcher {
 
 // ApplyJSONPatch applies JSON patch operations to a document.
 // This is a stub implementation that returns the original document.
-func (p *RFC6902Patcher) ApplyJSONPatch(ctx context.Context, doc []byte, patchOps []byte) ([]byte, error) {
+func (p *RFC6902Patcher) ApplyJSONPatch(_ context.Context, doc []byte, patchOps []byte) ([]byte, error) {
 	// To maintain zero dependencies, this returns the original document (no-op).
 	// Replace with a real implementation when needed.
 	if len(patchOps) > 0 {
