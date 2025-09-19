@@ -35,8 +35,22 @@ type DesignDoc struct {
 	Bot     Bot            `json:"bot"`     // Informações do bot
 	Version Version        `json:"version"` // Versão do fluxo
 	Entries []flow.Entry   `json:"entries"` // Pontos de entrada do fluxo
+	Profile Profile        `json:"profile"` // Configurações de perfil e contexto global
 	Graph   Graph          `json:"graph"`   // Grafo de nós e arestas
 	Props   map[string]any `json:"props"`   // Propriedades compartilhadas/templates
+}
+
+// Profile contém configurações de perfil e contexto global
+type Profile struct {
+	Context map[string]ProfileVariable `json:"context"` // Variáveis de contexto global
+}
+
+// ProfileVariable define uma variável do perfil/contexto
+type ProfileVariable struct {
+	Type     string `json:"type"`               // Tipo da variável (string, int, bool, etc.)
+	Default  string `json:"default,omitempty"`  // Valor padrão
+	Persist  bool   `json:"persist,omitempty"`  // Se deve persistir entre sessões
+	Required bool   `json:"required,omitempty"` // Se é obrigatória
 }
 
 // Bot contém metadados do bot

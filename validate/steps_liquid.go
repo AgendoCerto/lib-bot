@@ -3,12 +3,15 @@ package validate
 import (
 	"lib-bot/adapter"
 	"lib-bot/component"
+	"lib-bot/io"
 	"lib-bot/liquid"
 )
 
 type LiquidStep struct {
 	Policy liquid.Policy
 	Linter liquid.Linter
+	// Adicionado para suportar validação com contexto global
+	designDoc *io.DesignDoc
 }
 
 // NewLiquidStep cria um novo validador de templates Liquid
@@ -23,6 +26,11 @@ func NewLiquidStep() *LiquidStep {
 	}
 }
 
+// SetDesignContext define o contexto do design para validação
+func (s *LiquidStep) SetDesignContext(doc *io.DesignDoc) {
+	s.designDoc = doc
+}
+
 func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, path string) []Issue {
 	var issues []Issue
 
@@ -31,6 +39,14 @@ func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, 
 		"context.wa_phone": true,
 		"context.wa_name":  true,
 	}
+
+	// Adiciona variáveis globais do profile.context se disponível
+	if s.designDoc != nil {
+		for key := range s.designDoc.Profile.Context {
+			availableKeys["context."+key] = true
+		}
+	}
+
 	if spec.Persistence != nil && spec.Persistence.Enabled {
 		key := spec.Persistence.Key
 		scope := spec.Persistence.Scope

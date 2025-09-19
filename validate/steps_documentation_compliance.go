@@ -33,7 +33,7 @@ func (s *DocumentationComplianceStep) ValidateDesign(design io.DesignDoc) []Issu
 	issues = append(issues, s.validateProps(design.Props)...)
 
 	// 5. Valida estrutura do grafo
-	issues = append(issues, s.validateGraph(design.Graph)...)
+	issues = append(issues, s.validateGraphWithEntries(design.Graph, design.Entries)...)
 
 	return issues
 }
@@ -189,6 +189,11 @@ func (s *DocumentationComplianceStep) validateProps(props map[string]any) []Issu
 
 // validateGraph valida estrutura do grafo
 func (s *DocumentationComplianceStep) validateGraph(graph io.Graph) []Issue {
+	return s.validateGraphWithEntries(graph, nil)
+}
+
+// validateGraphWithEntries valida estrutura do grafo considerando entry points
+func (s *DocumentationComplianceStep) validateGraphWithEntries(graph io.Graph, entries []flow.Entry) []Issue {
 	var issues []Issue
 
 	if len(graph.Nodes) == 0 {
@@ -215,7 +220,7 @@ func (s *DocumentationComplianceStep) validateGraph(graph io.Graph) []Issue {
 	}
 
 	// Valida conectividade e terminais
-	issues = append(issues, s.validateConnectivity(graph)...)
+	issues = append(issues, s.validateConnectivityWithEntries(graph, entries)...)
 
 	return issues
 }
@@ -346,6 +351,11 @@ func (s *DocumentationComplianceStep) validateEdge(edge flow.Edge, nodeIDs map[f
 
 // validateConnectivity valida conectividade do grafo
 func (s *DocumentationComplianceStep) validateConnectivity(graph io.Graph) []Issue {
+	return s.validateConnectivityWithEntries(graph, nil)
+}
+
+// validateConnectivityWithEntries valida conectividade do grafo considerando entry points
+func (s *DocumentationComplianceStep) validateConnectivityWithEntries(graph io.Graph, entries []flow.Entry) []Issue {
 	var issues []Issue
 
 	// Constrói mapa de adjacência
@@ -366,14 +376,31 @@ func (s *DocumentationComplianceStep) validateConnectivity(graph io.Graph) []Iss
 		}
 	}
 
-	// Valida nós sem conexões de entrada (exceto entry points)
+	// Cria mapa de nós que são entry points
+	entryNodes := make(map[flow.ID]bool)
+	for _, entry := range entries {
+		entryNodes[entry.Target] = true
+	}
+
+	// Valida nós sem conexões de entrada (exceto entry points e nós HSM)
 	for nodeID := range nodeExists {
-		if incoming[nodeID] == 0 {
-			issues = append(issues, Issue{
-				Code: "doc.connectivity.unreachable_node", Severity: Warn,
-				Path: fmt.Sprintf("graph.nodes[%s]", nodeID),
-				Msg:  fmt.Sprintf("node %s has no incoming edges (may be unreachable)", nodeID),
-			})
+		if incoming[nodeID] == 0 && !entryNodes[nodeID] {
+			// Verifica se é um nó HSM (que pode ser iniciado externamente)
+			isHSMNode := false
+			for _, node := range graph.Nodes {
+				if node.ID == nodeID && node.Kind == "hsm" {
+					isHSMNode = true
+					break
+				}
+			}
+
+			if !isHSMNode {
+				issues = append(issues, Issue{
+					Code: "doc.connectivity.unreachable_node", Severity: Warn,
+					Path: fmt.Sprintf("graph.nodes[%s]", nodeID),
+					Msg:  fmt.Sprintf("node %s has no incoming edges (may be unreachable)", nodeID),
+				})
+			}
 		}
 
 		if outgoing[nodeID] == 0 {

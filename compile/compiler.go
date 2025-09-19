@@ -92,7 +92,7 @@ func (DefaultCompiler) Compile(ctx context.Context, design io.DesignDoc, reg *co
 
 	// Validações sobre specs (sem render)
 	p := validate.NewPipeline()
-	specIssues := p.Run(specs, a.Capabilities(), "$")
+	specIssues := p.RunWithDesign(specs, a.Capabilities(), "$", &design)
 
 	// Combina todas as issues
 	allIssues := append(topologyIssues, designIssues...)

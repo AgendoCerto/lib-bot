@@ -3,6 +3,7 @@ package validate
 import (
 	"lib-bot/adapter"
 	"lib-bot/component"
+	"lib-bot/io"
 )
 
 type Severity string
@@ -24,8 +25,16 @@ type Step interface {
 	Check(spec component.ComponentSpec, caps adapter.Capabilities, path string) []Issue
 }
 
+// ContextualStep interface para validadores que precisam de contexto do design
+type ContextualStep interface {
+	Step
+	SetDesignContext(doc *io.DesignDoc)
+}
+
 type Pipeline interface {
 	Run(specs []component.ComponentSpec, caps adapter.Capabilities, basePath string) []Issue
+	// Adicionado método para executar com contexto de design
+	RunWithDesign(specs []component.ComponentSpec, caps adapter.Capabilities, basePath string, design *io.DesignDoc) []Issue
 }
 
 type DefaultPipeline struct{ steps []Step }
@@ -44,7 +53,19 @@ func NewPipeline() Pipeline {
 }
 
 func (p *DefaultPipeline) Run(specs []component.ComponentSpec, caps adapter.Capabilities, basePath string) []Issue {
+	return p.RunWithDesign(specs, caps, basePath, nil)
+}
+
+func (p *DefaultPipeline) RunWithDesign(specs []component.ComponentSpec, caps adapter.Capabilities, basePath string, design *io.DesignDoc) []Issue {
 	var all []Issue
+
+	// Configura contexto do design para validadores que precisam
+	for _, st := range p.steps {
+		if contextualStep, ok := st.(ContextualStep); ok && design != nil {
+			contextualStep.SetDesignContext(design)
+		}
+	}
+
 	for i, s := range specs {
 		prefix := basePath + ".routes[" + itoa(i) + "]"
 		for _, st := range p.steps {

@@ -268,14 +268,51 @@ func (s *AdapterComplianceStep) validateGeneral(spec component.ComponentSpec, ca
 
 // containsRichText detecta se o texto contém formatação rica
 func containsRichText(text string) bool {
+	// Remove templates Liquid antes de verificar rich text
+	cleanText := removeLiquidTemplates(text)
+
 	// Verifica marcadores comuns de texto rico
 	richMarkers := []string{"**", "*", "_", "`", "~~", "[", "](", "##", "###"}
 	for _, marker := range richMarkers {
-		if strings.Contains(text, marker) {
+		if strings.Contains(cleanText, marker) {
 			return true
 		}
 	}
 	return false
+}
+
+// removeLiquidTemplates remove templates Liquid do texto para análise de rich text
+func removeLiquidTemplates(text string) string {
+	// Remove {{ }} templates
+	result := text
+	for {
+		start := strings.Index(result, "{{")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], "}}")
+		if end == -1 {
+			break
+		}
+		end += start + 2
+		result = result[:start] + result[end:]
+	}
+
+	// Remove {% %} templates
+	for {
+		start := strings.Index(result, "{%")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], "%}")
+		if end == -1 {
+			break
+		}
+		end += start + 2
+		result = result[:start] + result[end:]
+	}
+
+	return result
 }
 
 // ValidateDesign implementa DesignValidator interface
