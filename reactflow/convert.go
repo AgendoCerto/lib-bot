@@ -154,9 +154,6 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 			}
 
 			// Dimensões fixas para nó de entrada
-			width, height := 120.0, 60.0
-			startNode.Width = &width
-			startNode.Height = &height
 
 			nodes = append(nodes, startNode)
 
@@ -308,22 +305,6 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 			Deletable:      boolPtr(!n.Final), // Nós finais não podem ser deletados por segurança
 			SourcePosition: sourcePos,         // Handle de saída dinâmico
 			TargetPosition: targetPos,         // Handle de entrada dinâmico
-		}
-
-		// Adiciona dimensões se disponíveis, senão usa dimensões padrão
-		if n.Width != nil {
-			node.Width = n.Width
-		} else {
-			// Usa dimensões padrão baseadas no tipo do componente
-			width, _ := layout.GetNodeDimensions(n.Kind)
-			node.Width = &width
-		}
-		if n.Height != nil {
-			node.Height = n.Height
-		} else {
-			// Usa dimensões padrão baseadas no tipo do componente
-			_, height := layout.GetNodeDimensions(n.Kind)
-			node.Height = &height
 		}
 
 		nodes = append(nodes, node)
@@ -479,14 +460,6 @@ func ReactFlowToDesign(nodes []Node, edges []Edge, base io.DesignDoc) io.DesignD
 		fn.X = &n.Position.X
 		fn.Y = &n.Position.Y
 
-		// Preserva as dimensões se disponíveis
-		if n.Width != nil {
-			fn.Width = n.Width
-		}
-		if n.Height != nil {
-			fn.Height = n.Height
-		}
-
 		out.Graph.Nodes = append(out.Graph.Nodes, fn)
 	}
 
@@ -535,8 +508,18 @@ func ApplyAutoLayout(flowNodes []flow.Node, flowEdges []flow.Edge, reactNodes []
 	config := layout.DefaultConfig()
 	config.Direction = direction
 
-	// Executa algoritmo de layout
-	result := layout.AutoLayout(flowNodes, flowEdges, config)
+	// Cria grafo temporário para aplicar layout
+	tempGraph := &flow.Graph{
+		Nodes: flowNodes,
+		Edges: flowEdges,
+	}
+
+	// Aplica layout ao grafo temporário
+	err := layout.ApplyAutoLayout(tempGraph, config)
+	if err != nil {
+		// Em caso de erro, retorna nós sem modificar posições
+		return reactNodes
+	}
 
 	// Mapeia resultados de volta para os nós React Flow
 	nodeMap := make(map[string]*Node)
@@ -544,13 +527,11 @@ func ApplyAutoLayout(flowNodes []flow.Node, flowEdges []flow.Edge, reactNodes []
 		nodeMap[reactNodes[i].ID] = &reactNodes[i]
 	}
 
-	// Aplica posições e dimensões calculadas
-	for _, layoutNode := range result.Nodes {
-		if node, exists := nodeMap[string(layoutNode.ID)]; exists {
-			node.Position.X = layoutNode.X
-			node.Position.Y = layoutNode.Y
-			node.Width = &layoutNode.Width
-			node.Height = &layoutNode.Height
+	// Aplica posições calculadas
+	for _, flowNode := range tempGraph.Nodes {
+		if node, exists := nodeMap[string(flowNode.ID)]; exists && flowNode.X != nil && flowNode.Y != nil {
+			node.Position.X = *flowNode.X
+			node.Position.Y = *flowNode.Y
 		}
 	}
 

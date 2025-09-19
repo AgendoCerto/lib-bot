@@ -15,9 +15,6 @@ type Node struct {
 	// Coordenadas para persistência de posição no React Flow
 	X *float64 `json:"x,omitempty"` // Coordenada X da posição no editor visual
 	Y *float64 `json:"y,omitempty"` // Coordenada Y da posição no editor visual
-	// Dimensões para auto-layout
-	Width  *float64 `json:"width,omitempty"`  // Largura do nó (pixels)
-	Height *float64 `json:"height,omitempty"` // Altura do nó (pixels)
 	// Entradas e saídas padronizadas
 	Inputs  []string `json:"inputs,omitempty"`  // Tipos de entrada aceitos
 	Outputs []string `json:"outputs,omitempty"` // Tipos de saída produzidos
