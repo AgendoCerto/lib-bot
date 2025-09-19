@@ -240,7 +240,7 @@ func (v *TopologyValidator) validateCycles(graph io.Graph) []Issue {
 				}
 			} else if recStack[edge.To] {
 				// Ciclo detectado - verifica se tem guarda
-				if edge.Guard == "" {
+				if edge.Guard == nil || edge.Guard.Expr == "" {
 					issues = append(issues, Issue{
 						Code: "topology.cycle.no_guard", Severity: Err,
 						Path: "graph.edges",

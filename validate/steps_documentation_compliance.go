@@ -330,9 +330,9 @@ func (s *DocumentationComplianceStep) validateEdge(edge flow.Edge, nodeIDs map[f
 	}
 
 	// Valida guard se presente
-	if edge.Guard != "" {
+	if edge.Guard != nil && edge.Guard.Expr != "" {
 		// Guard deve seguir sintaxe básica
-		if !isValidGuardExpression(edge.Guard) {
+		if !isValidGuardExpression(edge.Guard.Expr) {
 			issues = append(issues, Issue{
 				Code: "doc.edge.invalid_guard", Severity: Warn,
 				Path: path + ".guard",

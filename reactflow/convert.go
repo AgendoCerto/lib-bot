@@ -13,9 +13,15 @@ import (
 
 // isFallbackEdge detecta se uma edge é de fallback/retry/timeout
 func isFallbackEdge(e flow.Edge) bool {
+	guardContains := func(text string) bool {
+		if e.Guard != nil && e.Guard.Expr != "" {
+			return strings.Contains(e.Guard.Expr, text)
+		}
+		return false
+	}
+
 	return e.Label == "timeout" || e.Label == "invalid" || e.Label == "fallback" ||
-		strings.Contains(e.Guard, "timeout") || strings.Contains(e.Guard, "fallback") ||
-		strings.Contains(e.Guard, "invalid")
+		guardContains("timeout") || guardContains("fallback") || guardContains("invalid")
 }
 
 // getEdgeHandles determina handles específicos para uma edge baseado na direção
@@ -333,8 +339,8 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 		if e.Priority != 0 {
 			data["priority"] = e.Priority
 		}
-		if e.Guard != "" {
-			data["guard"] = e.Guard
+		if e.Guard != nil && e.Guard.Expr != "" {
+			data["guard"] = e.Guard.Expr
 		}
 		// Prepara o label direto da edge se disponível
 		var directLabel string
@@ -348,13 +354,13 @@ func DesignToReactFlowWithDirection(d io.DesignDoc, direction layout.Direction) 
 		markerEnd := "arrowclosed"
 
 		// Personaliza edge baseado em guards/labels especiais
-		if e.Guard != "" {
+		if e.Guard != nil && e.Guard.Expr != "" {
 			// Edges com guards são condicionais
-			if strings.Contains(e.Guard, "timeout") {
+			if strings.Contains(e.Guard.Expr, "timeout") {
 				edgeType = "step"
 				animated = true
 				markerEnd = "arrow"
-			} else if strings.Contains(e.Guard, "fallback") || strings.Contains(e.Guard, "invalid") {
+			} else if strings.Contains(e.Guard.Expr, "fallback") || strings.Contains(e.Guard.Expr, "invalid") {
 				edgeType = "step"
 				markerEnd = "arrow"
 			}
@@ -495,12 +501,17 @@ func ReactFlowToDesign(nodes []Node, edges []Edge, base io.DesignDoc) io.DesignD
 		} else if p2, ok := e.Data["priority"].(int); ok {
 			priority = p2
 		}
+		var guardPtr *flow.Guard
+		if guard != "" {
+			guardPtr = &flow.Guard{Expr: guard}
+		}
+
 		out.Graph.Edges = append(out.Graph.Edges, flow.Edge{
 			From:     flow.ID(e.Source),
 			To:       flow.ID(e.Target),
 			Label:    label,
 			Priority: priority,
-			Guard:    guard,
+			Guard:    guardPtr,
 		})
 	}
 

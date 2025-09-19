@@ -16,12 +16,13 @@ import (
 	"lib-bot/component"
 	"lib-bot/io"
 	rf "lib-bot/reactflow"
+	"lib-bot/validate"
 )
 
 func main() {
 	// Configuração de flags de linha de comando
 	in := flag.String("in", "", "Caminho do arquivo Design JSON (opcional; usa exemplo se vazio)")
-	out := flag.String("out", "plan", "Tipo de saída: plan | reactflow | reactflow-auto-v | reactflow-auto-h")
+	out := flag.String("out", "plan", "Tipo de saída: plan | plan-full | reactflow | reactflow-auto-v | reactflow-auto-h")
 	outFile := flag.String("outfile", "", "Arquivo de saída (opcional; se vazio, imprime no stdout)")
 	adapterName := flag.String("adapter", "whatsapp", "Adapter: whatsapp (por enquanto)")
 	pretty := flag.Bool("pretty", true, "Imprimir JSON com identação")
@@ -55,7 +56,9 @@ func main() {
 	// 5) Processa saída conforme tipo solicitado
 	switch *out {
 	case "plan":
-		doPlan(design, reg, a, *pretty, finalOutFile)
+		doPlan(design, reg, a, *pretty, finalOutFile, false)
+	case "plan-full":
+		doPlan(design, reg, a, *pretty, finalOutFile, true)
 	case "reactflow":
 		doReactFlow(design, *pretty, finalOutFile)
 	case "reactflow-auto-v":
@@ -63,27 +66,76 @@ func main() {
 	case "reactflow-auto-h":
 		doReactFlowAutoHorizontal(design, *pretty, finalOutFile)
 	default:
-		log.Fatalf("valor inválido para -out: %q (use: plan | reactflow | reactflow-auto-v | reactflow-auto-h)", *out)
+		log.Fatalf("valor inválido para -out: %q (use: plan | plan-full | reactflow | reactflow-auto-v | reactflow-auto-h)", *out)
 	}
 }
 
+// ValidationResult estrutura o resultado completo da validação
+type ValidationResult struct {
+	Plan        io.RuntimePlan    `json:"plan"`
+	Checksum    string            `json:"checksum"`
+	Issues      []validate.Issue  `json:"issues"`
+	Summary     ValidationSummary `json:"summary"`
+	Persistence PersistenceInfo   `json:"persistence,omitempty"`
+}
+
+// ValidationSummary resume estatísticas da validação
+type ValidationSummary struct {
+	TotalIssues int `json:"total_issues"`
+	Errors      int `json:"errors"`
+	Warnings    int `json:"warnings"`
+	Infos       int `json:"infos"`
+}
+
+// PersistenceInfo contém informações sobre persistência no design
+type PersistenceInfo struct {
+	ContextKeys    []string `json:"context_keys,omitempty"`
+	ProfileKeys    []string `json:"profile_keys,omitempty"`
+	HasPersistence bool     `json:"has_persistence"`
+}
+
 // doPlan compila o design em um plano de execução usando o adapter especificado
-func doPlan(design io.DesignDoc, reg *component.Registry, a adapter.Adapter, pretty bool, outFile string) {
+func doPlan(design io.DesignDoc, reg *component.Registry, a adapter.Adapter, pretty bool, outFile string, fullOutput bool) {
 	comp := compile.DefaultCompiler{}
-	plan, checksum, issues, err := comp.Compile(context.Background(), design, reg, a)
+
+	// O compiler já inclui todas as validações: design + component + design pipeline
+	plan, checksum, allIssues, err := comp.Compile(context.Background(), design, reg, a)
 	must(err)
 
-	// Informações de debug em stderr
+	// Cria resultado estruturado
+	result := ValidationResult{
+		Plan:     plan,
+		Checksum: checksum,
+		Issues:   allIssues,
+		Summary: ValidationSummary{
+			TotalIssues: len(allIssues),
+			Errors:      countBySeverity(allIssues, "error"),
+			Warnings:    countBySeverity(allIssues, "warn"),
+			Infos:       countBySeverity(allIssues, "info"),
+		},
+		Persistence: extractPersistenceInfo(design),
+	}
+
+	// Debug info em stderr
 	fmt.Fprintf(os.Stderr, "Design checksum: %s\n", checksum)
-	if len(issues) > 0 {
+	fmt.Fprintf(os.Stderr, "Validation: %d issues (%d errors, %d warnings)\n",
+		result.Summary.TotalIssues, result.Summary.Errors, result.Summary.Warnings)
+
+	if len(allIssues) > 0 {
 		fmt.Fprintln(os.Stderr, "Validation issues:")
-		for _, is := range issues {
+		for _, is := range allIssues {
 			fmt.Fprintf(os.Stderr, " - [%s] %s (%s)\n", is.Severity, is.Msg, is.Path)
 		}
 	}
 
-	// Plano em stdout ou arquivo
-	writeJSON(plan, pretty, outFile)
+	// Output: plan ou resultado completo
+	if fullOutput {
+		// Saída completa com validação
+		writeJSON(result, pretty, outFile)
+	} else {
+		// Apenas o plano (compatibilidade)
+		writeJSON(plan, pretty, outFile)
+	}
 }
 
 // doReactFlow converte o design para formato React Flow
@@ -130,6 +182,8 @@ func generateOutputFileName(inputFile, outputType string) string {
 	base := strings.TrimSuffix(inputFile, filepath.Ext(inputFile))
 
 	switch outputType {
+	case "plan-full":
+		return base + "-plan-full.json"
 	case "reactflow":
 		return base + "-reactflow.json"
 	case "reactflow-auto-v":
@@ -167,6 +221,49 @@ func must(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// countBySeverity conta issues por severidade
+func countBySeverity(issues []validate.Issue, severity string) int {
+	count := 0
+	for _, issue := range issues {
+		if string(issue.Severity) == severity {
+			count++
+		}
+	}
+	return count
+}
+
+// extractPersistenceInfo extrai informações de persistência do design
+func extractPersistenceInfo(design io.DesignDoc) PersistenceInfo {
+	info := PersistenceInfo{
+		ContextKeys: make([]string, 0),
+		ProfileKeys: make([]string, 0),
+	}
+
+	// Coleta keys do profile.context
+	for key := range design.Profile.Context {
+		info.ContextKeys = append(info.ContextKeys, key)
+	}
+
+	// Analisa props para encontrar configurações de persistência
+	for _, props := range design.Props {
+		if propsMap, ok := props.(map[string]any); ok {
+			if persistenceConfig, err := component.ParsePersistence(propsMap); err == nil && persistenceConfig != nil && persistenceConfig.Enabled {
+				info.HasPersistence = true
+				key := persistenceConfig.Key
+				if key != "" {
+					if persistenceConfig.Scope == "context" {
+						info.ContextKeys = append(info.ContextKeys, key)
+					} else if persistenceConfig.Scope == "profile" {
+						info.ProfileKeys = append(info.ProfileKeys, key)
+					}
+				}
+			}
+		}
+	}
+
+	return info
 }
 
 // --- seleção de adapter usando a interface real ---

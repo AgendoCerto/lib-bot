@@ -23,12 +23,17 @@ type Node struct {
 	Outputs []string `json:"outputs,omitempty"` // Tipos de saída produzidos
 }
 
+// Guard representa uma condição para ativação da aresta
+type Guard struct {
+	Expr string `json:"expr"` // Expressão condicional para avaliação
+}
+
 // Edge representa uma aresta no grafo (transição entre nós)
 type Edge struct {
 	From     ID             `json:"from"`               // ID do nó de origem
 	To       ID             `json:"to"`                 // ID do nó de destino
 	Label    string         `json:"label,omitempty"`    // Rótulo da aresta
-	Guard    string         `json:"guard,omitempty"`    // Condição para ativação da aresta
+	Guard    *Guard         `json:"guard,omitempty"`    // Condição para ativação da aresta
 	Priority int            `json:"priority,omitempty"` // Prioridade de avaliação (menor = maior prioridade)
 	Metadata map[string]any `json:"metadata,omitempty"` // Metadados adicionais da transição
 }
