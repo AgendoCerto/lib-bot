@@ -183,26 +183,50 @@ func (s *StoreService) Compare(ctx context.Context, botID1, botID2 string) (bool
 }
 
 // ApplyPatches aplica patches RFC 6902 usando store atômico (se disponível)
-func (s *StoreService) ApplyPatches(ctx context.Context, botID string, patches []byte, atomicService *store.Service) ([]byte, error) {
-	if atomicService != nil {
-		// Usa store atômico se disponível
-		// TODO: implementar quando store.Service tiver métodos corretos
-		return nil, fmt.Errorf("store atômico não implementado ainda")
-	}
-
-	// Fallback: aplica patches manualmente
+func (s *StoreService) ApplyPatches(ctx context.Context, botID string, patches []byte, validationService *ValidationService, adapterName string) ([]byte, error) {
+	// Carrega design atual
 	design, err := s.Load(ctx, botID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro ao carregar design: %w", err)
 	}
 
+	// Aplica patches usando RFC 6902
 	codec := io.JSONCodec{}
 	designJSON, err := codec.EncodeDesign(design)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro ao codificar design: %w", err)
 	}
 
-	// Aqui aplicaríamos os patches RFC 6902
-	// Por simplicidade, retornamos o design original
-	return designJSON, nil
+	// Usa o patcher RFC 6902
+	patcher := store.NewRFC6902Patcher()
+	patchedJSON, err := patcher.ApplyJSONPatch(ctx, designJSON, patches)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao aplicar patches: %w", err)
+	}
+
+	// Parse do design modificado
+	patchedDesign, err := codec.DecodeDesign(patchedJSON)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao decodificar design modificado: %w", err)
+	}
+
+	// Valida o design modificado se validationService for fornecido
+	if validationService != nil {
+		result, err := validationService.ValidateDesign(ctx, patchedDesign, adapterName)
+		if err != nil {
+			return nil, fmt.Errorf("erro na validação após patches: %w", err)
+		}
+
+		if !result.Valid {
+			return nil, fmt.Errorf("design inválido após aplicar patches: %d issues encontrados", len(result.Issues))
+		}
+	}
+
+	// Salva o design modificado
+	_, err = s.Save(ctx, botID, patchedDesign)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao salvar design modificado: %w", err)
+	}
+
+	return patchedJSON, nil
 }

@@ -8,6 +8,7 @@ import (
 
 	"lib-bot/flow"
 	"lib-bot/io"
+	"lib-bot/store"
 )
 
 // DesignService é responsável por operações CRUD em designs de bots
@@ -227,65 +228,28 @@ func (s *DesignService) Validate(ctx context.Context, design io.DesignDoc, adapt
 	return s.validationService.ValidateDesign(ctx, design, adapterName)
 }
 
-// applyPatches aplica patches RFC 6902 a um JSON (implementação simplificada)
+// applyPatches aplica patches RFC 6902 a um JSON usando a implementação adequada
 func (s *DesignService) applyPatches(jsonData []byte, patches []PatchOperation) ([]byte, error) {
-	// Deserializa JSON
-	var data interface{}
-	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return nil, err
+	if len(patches) == 0 {
+		return jsonData, nil
 	}
 
-	// Aplica cada patch (implementação básica)
-	for _, patch := range patches {
-		var err error
-		data, err = s.applyPatch(data, patch)
-		if err != nil {
-			return nil, fmt.Errorf("erro ao aplicar patch %s: %w", patch.Op, err)
-		}
+	// Converte patches para RFC 6902 format
+	patchJSON, err := json.Marshal(patches)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao serializar patches: %w", err)
 	}
 
-	// Serializa resultado
-	return json.Marshal(data)
-}
+	// Usa o patcher RFC 6902 do store package
+	patcher := store.NewRFC6902Patcher()
+	ctx := context.Background()
 
-// applyPatch aplica um único patch (implementação básica para demonstração)
-func (s *DesignService) applyPatch(data interface{}, patch PatchOperation) (interface{}, error) {
-	// Esta é uma implementação simplificada
-	// Em produção, usar biblioteca como github.com/evanphx/json-patch
-
-	switch patch.Op {
-	case "add":
-		return s.applyAdd(data, patch.Path, patch.Value)
-	case "remove":
-		return s.applyRemove(data, patch.Path)
-	case "replace":
-		return s.applyReplace(data, patch.Path, patch.Value)
-	case "test":
-		return s.applyTest(data, patch.Path, patch.Value)
-	default:
-		return nil, fmt.Errorf("operação não suportada: %s", patch.Op)
+	result, err := patcher.ApplyJSONPatch(ctx, jsonData, patchJSON)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao aplicar patches RFC 6902: %w", err)
 	}
-}
 
-// Implementações básicas dos patches (para demonstração)
-func (s *DesignService) applyAdd(data interface{}, path string, value interface{}) (interface{}, error) {
-	// Implementação simplificada - em produção usar lib RFC 6902
-	return data, nil
-}
-
-func (s *DesignService) applyRemove(data interface{}, path string) (interface{}, error) {
-	// Implementação simplificada - em produção usar lib RFC 6902
-	return data, nil
-}
-
-func (s *DesignService) applyReplace(data interface{}, path string, value interface{}) (interface{}, error) {
-	// Implementação simplificada - em produção usar lib RFC 6902
-	return data, nil
-}
-
-func (s *DesignService) applyTest(data interface{}, path string, value interface{}) (interface{}, error) {
-	// Implementação simplificada - em produção usar lib RFC 6902
-	return data, nil
+	return result, nil
 }
 
 // getEdgeRemovalPatches gera patches para remover edges relacionadas a um nó
