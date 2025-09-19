@@ -2,6 +2,7 @@ package validate
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"lib-bot/adapter"
@@ -266,53 +267,202 @@ func (s *AdapterComplianceStep) validateGeneral(spec component.ComponentSpec, ca
 	return issues
 }
 
-// containsRichText detecta se o texto contém formatação rica
+// containsRichText detecta se o texto contém formatação rica após remover templates Liquid
 func containsRichText(text string) bool {
-	// Remove templates Liquid antes de verificar rich text
-	cleanText := removeLiquidTemplates(text)
+	// Remove todos os templates Liquid usando regex para maior eficiência
+	cleanText := removeLiquidTemplatesAdvanced(text)
 
-	// Verifica marcadores comuns de texto rico
-	richMarkers := []string{"**", "*", "_", "`", "~~", "[", "](", "##", "###"}
+	// Verifica marcadores de rich text em ordem de frequência para otimização
+	richMarkers := []richTextPattern{
+		// Markdown básico
+		{"**", "bold"},          // **bold**
+		{"*", "italic"},         // *italic*
+		{"_", "italic/bold"},    // _italic_ ou __bold__
+		{"`", "code"},           // `code`
+		{"~~", "strikethrough"}, // ~~strikethrough~~
+
+		// Markdown links e referências
+		{"[", "link_start"},   // [link](url)
+		{"](", "link_middle"}, // [text](url)
+
+		// Headers markdown
+		{"# ", "header1"},    // # Header
+		{"## ", "header2"},   // ## Header
+		{"### ", "header3"},  // ### Header
+		{"#### ", "header4"}, // #### Header
+
+		// Outros marcadores comuns
+		{"> ", "blockquote"},     // > quote
+		{"- ", "list"},           // - item
+		{"* ", "list"},           // * item
+		{"+ ", "list"},           // + item
+		{"1. ", "numbered_list"}, // 1. item
+	}
+
+	// Verifica cada marcador no texto limpo
 	for _, marker := range richMarkers {
-		if strings.Contains(cleanText, marker) {
+		if containsRichTextMarker(cleanText, marker.pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// richTextPattern define um padrão de texto rico
+type richTextPattern struct {
+	pattern string
+	name    string
+}
+
+// containsRichTextMarker verifica se um marcador específico está presente de forma válida
+func containsRichTextMarker(text, marker string) bool {
+	if !strings.Contains(text, marker) {
+		return false
+	}
+
+	// Verificações contextuais para reduzir falsos positivos
+	switch {
+	case marker == "*" || marker == "**":
+		// Verifica se não é apenas um asterisco isolado em matemática
+		return hasValidAsteriskFormatting(text)
+	case marker == "* ":
+		// Verifica se é realmente uma lista e não matemática
+		return hasValidListFormatting(text)
+	case marker == "_" || marker == "__":
+		// Verifica se não é apenas underscore em identificadores
+		return hasValidUnderscoreFormatting(text)
+	case strings.HasPrefix(marker, "# "):
+		// Verifica se é realmente um header e não um hashtag
+		return hasValidHeaderFormatting(text)
+	case marker == "[" || marker == "](":
+		// Verifica se faz parte de uma estrutura de link válida
+		return hasValidLinkFormatting(text)
+	default:
+		return true
+	}
+}
+
+// hasValidAsteriskFormatting verifica se asteriscos são para formatação, não matemática
+func hasValidAsteriskFormatting(text string) bool {
+	// Primeiro, verifica se há expressões matemáticas óbvias
+	mathPatterns := []string{
+		`\d+\s*\*\s*\d+`, // 2 * 3
+		`\d+\s*\*\s*\$`,  // 5 * $
+		`\$\s*\*\s*\d+`,  // $ * 2
+		`\w+\s*\*\s*\w+`, // var * var
+	}
+
+	for _, pattern := range mathPatterns {
+		if matched, _ := regexp.MatchString(pattern, text); matched {
+			// Se encontrou padrão matemático, não considera como formatação
+			return false
+		}
+	}
+
+	// Procura por padrões **texto** ou *texto* (formatação)
+	formatPatterns := []string{
+		`\*\*[^*]+\*\*`, // **bold**
+		`\*[^*]{2,}\*`,  // *italic* (pelo menos 2 caracteres)
+	}
+
+	for _, pattern := range formatPatterns {
+		if matched, _ := regexp.MatchString(pattern, text); matched {
 			return true
 		}
 	}
 	return false
 }
 
-// removeLiquidTemplates remove templates Liquid do texto para análise de rich text
-func removeLiquidTemplates(text string) string {
-	// Remove {{ }} templates
+// hasValidUnderscoreFormatting verifica se underscores são para formatação
+func hasValidUnderscoreFormatting(text string) bool {
+	// Procura por padrões __texto__ ou _texto_ (evitando identificadores como user_id)
+	patterns := []string{
+		`__[^_]+__`,       // __bold__
+		`_[^_\s\w][^_]*_`, // _italic_ (não inicia com letra/número para evitar identificadores)
+		`_[^_]*[^\w]_`,    // _italic_ (não termina com letra/número)
+	}
+
+	for _, pattern := range patterns {
+		if matched, _ := regexp.MatchString(pattern, text); matched {
+			return true
+		}
+	}
+	return false
+}
+
+// hasValidHeaderFormatting verifica se # é um header markdown
+func hasValidHeaderFormatting(text string) bool {
+	// Procura por padrões # Texto no início de linha
+	patterns := []string{
+		`^#{1,6}\s+.+`,  // # Header no início
+		`\n#{1,6}\s+.+`, // # Header após quebra de linha
+	}
+
+	for _, pattern := range patterns {
+		if matched, _ := regexp.MatchString(pattern, text); matched {
+			return true
+		}
+	}
+	return false
+}
+
+// hasValidLinkFormatting verifica se [ faz parte de um link markdown
+func hasValidLinkFormatting(text string) bool {
+	// Procura por padrões [texto](url) ou [texto][ref]
+	patterns := []string{
+		`\[[^\]]+\]\([^)]+\)`,  // [texto](url)
+		`\[[^\]]+\]\[[^\]]*\]`, // [texto][ref]
+		`\[[^\]]+\]:`,          // [ref]: definição
+	}
+
+	for _, pattern := range patterns {
+		if matched, _ := regexp.MatchString(pattern, text); matched {
+			return true
+		}
+	}
+	return false
+}
+
+// hasValidListFormatting verifica se * é um marcador de lista
+func hasValidListFormatting(text string) bool {
+	// Procura por padrões de lista no início de linha
+	patterns := []string{
+		`^\*\s+`,  // * item no início
+		`\n\*\s+`, // * item após quebra de linha
+	}
+
+	for _, pattern := range patterns {
+		if matched, _ := regexp.MatchString(pattern, text); matched {
+			return true
+		}
+	}
+	return false
+}
+
+// removeLiquidTemplatesAdvanced remove templates Liquid usando regex otimizada
+func removeLiquidTemplatesAdvanced(text string) string {
+	// Regex para templates Liquid mais robusta
+	liquidPatterns := []*regexp.Regexp{
+		// {{ variavel }}, {{ variavel | filtro }}, {{ variavel.propriedade }}
+		regexp.MustCompile(`\{\{\s*[^}]+\s*\}\}`),
+
+		// {% tag %}, {% if %}, {% for %}, etc.
+		regexp.MustCompile(`\{%\s*[^%]+\s*%\}`),
+
+		// {%- tag -%} (whitespace control)
+		regexp.MustCompile(`\{%-?\s*[^%]+\s*-?%\}`),
+
+		// {{- variavel -}} (whitespace control)
+		regexp.MustCompile(`\{\{-?\s*[^}]+\s*-?\}\}`),
+	}
+
 	result := text
-	for {
-		start := strings.Index(result, "{{")
-		if start == -1 {
-			break
-		}
-		end := strings.Index(result[start:], "}}")
-		if end == -1 {
-			break
-		}
-		end += start + 2
-		result = result[:start] + result[end:]
+	for _, pattern := range liquidPatterns {
+		result = pattern.ReplaceAllString(result, "")
 	}
 
-	// Remove {% %} templates
-	for {
-		start := strings.Index(result, "{%")
-		if start == -1 {
-			break
-		}
-		end := strings.Index(result[start:], "%}")
-		if end == -1 {
-			break
-		}
-		end += start + 2
-		result = result[:start] + result[end:]
-	}
-
-	return result
+	return strings.TrimSpace(result)
 }
 
 // ValidateDesign implementa DesignValidator interface
