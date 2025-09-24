@@ -1,6 +1,8 @@
 package validate
 
 import (
+	"strings"
+
 	"github.com/AgendoCerto/lib-bot/adapter"
 	"github.com/AgendoCerto/lib-bot/component"
 	"github.com/AgendoCerto/lib-bot/io"
@@ -34,16 +36,42 @@ func (s *LiquidStep) SetDesignContext(doc *io.DesignDoc) {
 func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, path string) []Issue {
 	var issues []Issue
 
-	// Collect available keys: context/profile keys from persistence, plus WhatsApp defaults
+	// Chaves de contexto sempre disponíveis (sessão baseada em janelas)
 	availableKeys := map[string]bool{
-		"context.wa_phone": true,
-		"context.wa_name":  true,
+		// Contexto padrão do cliente/sessão - SEMPRE disponível
+		"context.name":         true,
+		"context.phone_number": true,
+		"context.captured_at":  true,
 	}
 
-	// Adiciona variáveis globais do profile.context se disponível
+	// Adiciona variáveis do profile se disponível
 	if s.designDoc != nil {
-		for key := range s.designDoc.Profile.Context {
-			availableKeys["context."+key] = true
+		// Variáveis do profile.context (definições) - apenas context. e profile.
+		for key, profileVar := range s.designDoc.Profile.Context {
+			if profileVar.Persist {
+				// Variáveis persistentes vão para profile scope
+				availableKeys["profile."+key] = true
+			} else {
+				// Variáveis temporárias vão para context scope
+				availableKeys["context."+key] = true
+			}
+		}
+
+		// Variáveis do profile.variables (valores atuais)
+		if s.designDoc.Profile.Variables != nil {
+			for key := range s.designDoc.Profile.Variables {
+				// Verificar se a variável é persistente baseado na definição
+				if profileVar, hasDefinition := s.designDoc.Profile.Context[key]; hasDefinition {
+					if profileVar.Persist {
+						availableKeys["profile."+key] = true
+					} else {
+						availableKeys["context."+key] = true
+					}
+				} else {
+					// Se não há definição, assume context por padrão
+					availableKeys["context."+key] = true
+				}
+			}
 		}
 	}
 
@@ -61,14 +89,35 @@ func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, 
 
 	checkVars := func(meta liquid.Meta, path string) {
 		for _, v := range meta.Vars {
-			// Accept dot notation (context.key, profile.key)
-			if !availableKeys[v] {
+			// Verificar se usa escopo inválido (user. ou flow.)
+			if strings.HasPrefix(v, "user.") || strings.HasPrefix(v, "flow.") {
 				issues = append(issues, Issue{
-					Code:     "liquid.var.missing_persistence",
+					Code:     "liquid.var.invalid_scope",
 					Severity: Err,
 					Path:     path,
-					Msg:      "Liquid variable '" + v + "' is not available in persisted keys/context/profile.",
+					Msg:      "Liquid variable '" + v + "' uses invalid scope. Use 'context.' or 'profile.' instead.",
 				})
+				continue
+			}
+
+			// Verificar se a variável está disponível
+			if !availableKeys[v] {
+				// Verificar se é um acesso válido mas não definido
+				if strings.HasPrefix(v, "context.") || strings.HasPrefix(v, "profile.") {
+					issues = append(issues, Issue{
+						Code:     "liquid.var.missing_persistence",
+						Severity: Err,
+						Path:     path,
+						Msg:      "Liquid variable '" + v + "' is not available in persisted keys/context/profile.",
+					})
+				} else {
+					issues = append(issues, Issue{
+						Code:     "liquid.var.invalid_format",
+						Severity: Err,
+						Path:     path,
+						Msg:      "Liquid variable '" + v + "' must use 'context.' or 'profile.' prefix.",
+					})
+				}
 			}
 		}
 	}

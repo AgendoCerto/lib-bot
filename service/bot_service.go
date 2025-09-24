@@ -126,6 +126,9 @@ func (bs *BotService) CreateBot(ctx context.Context, req CreateBotRequest) (*Bot
 					Required: false,
 				},
 			},
+			Variables: map[string]any{
+				"user_name": "",
+			},
 		},
 		Graph: io.Graph{
 			Nodes: []flow.Node{

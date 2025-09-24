@@ -42,7 +42,8 @@ type DesignDoc struct {
 
 // Profile contém configurações de perfil e contexto global
 type Profile struct {
-	Context map[string]ProfileVariable `json:"context"` // Variáveis de contexto global
+	Context   map[string]ProfileVariable `json:"context"`             // Variáveis de contexto global
+	Variables map[string]any             `json:"variables,omitempty"` // Valores atuais/defaults das variáveis
 }
 
 // ProfileVariable define uma variável do perfil/contexto

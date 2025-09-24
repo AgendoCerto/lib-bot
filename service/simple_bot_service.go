@@ -53,6 +53,9 @@ func (sbs *SimpleBotService) CreateBot(ctx context.Context, botID, name, adapter
 					Required: false,
 				},
 			},
+			Variables: map[string]any{
+				"user_name": "",
+			},
 		},
 		Graph: io.Graph{
 			Nodes: []flow.Node{
