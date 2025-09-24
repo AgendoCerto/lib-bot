@@ -136,11 +136,11 @@ func buildRuntimeContextFromProfile(profile io.Profile) runtime.Context {
 	runtimeCtx.Context["wa_phone"] = "" // backward compatibility
 	runtimeCtx.Context["wa_name"] = ""  // backward compatibility
 
-	// Processar variáveis do profile.variables (valores atuais/defaults processados)
-	if profile.Variables != nil {
-		for varName, value := range profile.Variables {
+	// Processar variáveis do profile.variables.profile (valores atuais/defaults processados)
+	if profile.Variables.Profile != nil {
+		for varName, value := range profile.Variables.Profile {
 			// Verificar se é uma variável persistente ou temporária baseada na definição context
-			if profileVar, hasDefinition := profile.Context[varName]; hasDefinition {
+			if profileVar, hasDefinition := profile.Variables.Context[varName]; hasDefinition {
 				if profileVar.Persist {
 					// Variáveis persistentes vão para Profile
 					runtimeCtx.Profile[varName] = value
@@ -155,9 +155,9 @@ func buildRuntimeContextFromProfile(profile io.Profile) runtime.Context {
 		}
 	}
 
-	// Backup: processar diretamente do context se não há variables
-	if len(profile.Variables) == 0 {
-		for varName, profileVar := range profile.Context {
+	// Backup: processar diretamente do context se não há profile values
+	if len(profile.Variables.Profile) == 0 {
+		for varName, profileVar := range profile.Variables.Context {
 			// Determina o valor da variável
 			var value any
 			if profileVar.Default != "" {

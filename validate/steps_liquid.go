@@ -46,8 +46,8 @@ func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, 
 
 	// Adiciona variáveis do profile se disponível
 	if s.designDoc != nil {
-		// Variáveis do profile.context (definições) - apenas context. e profile.
-		for key, profileVar := range s.designDoc.Profile.Context {
+		// Variáveis do profile.variables.context (definições) - apenas context. e profile.
+		for key, profileVar := range s.designDoc.Profile.Variables.Context {
 			if profileVar.Persist {
 				// Variáveis persistentes vão para profile scope
 				availableKeys["profile."+key] = true
@@ -57,11 +57,11 @@ func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, 
 			}
 		}
 
-		// Variáveis do profile.variables (valores atuais)
-		if s.designDoc.Profile.Variables != nil {
-			for key := range s.designDoc.Profile.Variables {
+		// Variáveis do profile.variables.profile (valores atuais)
+		if s.designDoc.Profile.Variables.Profile != nil {
+			for key := range s.designDoc.Profile.Variables.Profile {
 				// Verificar se a variável é persistente baseado na definição
-				if profileVar, hasDefinition := s.designDoc.Profile.Context[key]; hasDefinition {
+				if profileVar, hasDefinition := s.designDoc.Profile.Variables.Context[key]; hasDefinition {
 					if profileVar.Persist {
 						availableKeys["profile."+key] = true
 					} else {

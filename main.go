@@ -241,8 +241,8 @@ func extractPersistenceInfo(design io.DesignDoc) PersistenceInfo {
 		ProfileKeys: make([]string, 0),
 	}
 
-	// Coleta keys do profile.context
-	for key := range design.Profile.Context {
+	// Coleta keys do profile.variables.context
+	for key := range design.Profile.Variables.Context {
 		info.ContextKeys = append(info.ContextKeys, key)
 	}
 
@@ -253,9 +253,10 @@ func extractPersistenceInfo(design io.DesignDoc) PersistenceInfo {
 				info.HasPersistence = true
 				key := persistenceConfig.Key
 				if key != "" {
-					if persistenceConfig.Scope == "context" {
+					switch persistenceConfig.Scope {
+					case "context":
 						info.ContextKeys = append(info.ContextKeys, key)
-					} else if persistenceConfig.Scope == "profile" {
+					case "profile":
 						info.ProfileKeys = append(info.ProfileKeys, key)
 					}
 				}

@@ -19,13 +19,13 @@ func (v *ProfileContextStep) ValidateDesign(design io.DesignDoc) []Issue {
 	var issues []Issue
 
 	// Verificar se há profile definido
-	if len(design.Profile.Context) == 0 && len(design.Profile.Variables) == 0 {
+	if len(design.Profile.Variables.Context) == 0 && len(design.Profile.Variables.Profile) == 0 {
 		return issues // Profile vazio é válido
 	}
 
 	// Validar cada variável definida no contexto
-	for varName, profileVar := range design.Profile.Context {
-		path := "profile.context." + varName
+	for varName, profileVar := range design.Profile.Variables.Context {
+		path := "profile.variables.context." + varName
 
 		// Validar nome da variável
 		if varName == "" {
@@ -80,28 +80,28 @@ func (v *ProfileContextStep) ValidateDesign(design io.DesignDoc) []Issue {
 		// Validar se variáveis obrigatórias têm valor default ou valor atual
 		if profileVar.Required {
 			hasDefault := profileVar.Default != ""
-			hasCurrentValue := design.Profile.Variables != nil && design.Profile.Variables[varName] != nil
+			hasCurrentValue := design.Profile.Variables.Profile != nil && design.Profile.Variables.Profile[varName] != nil
 
 			if !hasDefault && !hasCurrentValue {
 				issues = append(issues, Issue{
 					Code:     "profile_required_without_value",
 					Severity: "warning",
-					Msg:      "Required variable should have a default value or current value in profile.variables",
+					Msg:      "Required variable should have a default value or current value in profile.variables.profile",
 					Path:     path,
 				})
 			}
 		}
 	}
 
-	// Validar consistência entre profile.variables e profile.context
-	if design.Profile.Variables != nil {
-		for varName := range design.Profile.Variables {
-			if _, hasDefinition := design.Profile.Context[varName]; !hasDefinition {
+	// Validar consistência entre profile.variables.profile e profile.variables.context
+	if design.Profile.Variables.Profile != nil {
+		for varName := range design.Profile.Variables.Profile {
+			if _, hasDefinition := design.Profile.Variables.Context[varName]; !hasDefinition {
 				issues = append(issues, Issue{
 					Code:     "profile_variable_without_definition",
 					Severity: "warning",
-					Msg:      "Variable '" + varName + "' has value but no definition in profile.context",
-					Path:     "profile.variables." + varName,
+					Msg:      "Variable '" + varName + "' has value but no definition in profile.variables.context",
+					Path:     "profile.variables.profile." + varName,
 				})
 			}
 		}

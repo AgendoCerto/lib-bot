@@ -46,15 +46,17 @@ func (sbs *SimpleBotService) CreateBot(ctx context.Context, botID, name, adapter
 			},
 		},
 		Profile: io.Profile{
-			Context: map[string]io.ProfileVariable{
-				"user_name": {
-					Type:     "string",
-					Default:  "",
-					Required: false,
+			Variables: io.ProfileVariables{
+				Context: map[string]io.ProfileVariable{
+					"user_name": {
+						Type:     "string",
+						Default:  "",
+						Required: false,
+					},
 				},
-			},
-			Variables: map[string]any{
-				"user_name": "",
+				Profile: map[string]any{
+					"user_name": "",
+				},
 			},
 		},
 		Graph: io.Graph{
