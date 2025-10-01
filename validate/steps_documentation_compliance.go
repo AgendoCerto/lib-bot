@@ -244,17 +244,18 @@ func (s *DocumentationComplianceStep) validateNode(node flow.Node, path string) 
 
 	// Valida kinds conhecidos
 	knownKinds := map[string]bool{
-		"message":    true,
-		"text":       true,
-		"buttons":    true,
-		"listpicker": true,
-		"carousel":   true,
-		"confirm":    true,
-		"media":      true,
-		"delay":      true,
-		"router":     true,
-		"terminal":   true,
-		"action":     true,
+		"message":      true,
+		"buttons":      true,
+		"listpicker":   true,
+		"carousel":     true,
+		"media":        true,
+		"delay":        true,
+		"terms":        true,
+		"feedback":     true,
+		"router":       true,
+		"terminal":     true,
+		"action":       true,
+		"global_start": true,
 	}
 
 	if node.Kind != "" && !knownKinds[node.Kind] {

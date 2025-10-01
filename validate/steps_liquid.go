@@ -20,9 +20,49 @@ type LiquidStep struct {
 func NewLiquidStep() *LiquidStep {
 	return &LiquidStep{
 		Policy: liquid.Policy{
-			StrictVars:     true,
-			AllowedFilters: map[string]bool{"upcase": true, "downcase": true, "capitalize": true},
-			MaxDepth:       5,
+			StrictVars: true,
+			AllowedFilters: map[string]bool{
+				// Filtros de texto básicos
+				"upcase": true, "downcase": true, "capitalize": true,
+				"strip": true, "truncate": true, "replace": true,
+				"slug": true, "camelize": true, "underscore": true,
+				// Filtros de controle
+				"default": true,
+				// Filtros de formatação
+				"date": true, "number": true,
+				// Filtros matemáticos
+				"plus": true, "minus": true, "times": true, "divide": true,
+				"modulo": true, "abs": true, "round": true, "floor": true, "ceil": true,
+				// Filtros de array/objeto
+				"size": true, "first": true, "last": true, "join": true,
+				"sort": true, "uniq": true, "reverse": true,
+				// Filtros de escape
+				"escape": true, "escape_once": true, "url_encode": true, "url_decode": true,
+				// 🌍 Formatação internacional
+				"phone": true, "currency": true, "money": true,
+				// 🇧🇷 Documentos brasileiros
+				"cpf": true, "cnpj": true, "cep": true, "rg": true,
+				// 📅 Data/hora avançados
+				"date_tz": true, "time_ago": true, "duration": true, "timestamp": true, "from_now": true,
+				// 🔐 Hash/encode
+				"md5": true, "sha1": true, "sha256": true, "base64": true, "base64_decode": true,
+				// 📏 Validação
+				"length": true, "word_count": true, "newline_to_br": true, "strip_html": true,
+			},
+			AllowedTags: map[string]bool{
+				// Tags de controle de fluxo
+				"if": true, "elsif": true, "else": true, "endif": true,
+				"unless": true, "endunless": true,
+				// Tags de loop
+				"for": true, "endfor": true, "break": true, "continue": true,
+				// Tags de case/when
+				"case": true, "when": true, "endcase": true,
+				// Tags de assign/capture
+				"assign": true, "capture": true, "endcapture": true,
+				// Tags de comentário
+				"comment": true, "endcomment": true,
+			},
+			MaxDepth: 5,
 		},
 		Linter: liquid.SimpleLinter{},
 	}

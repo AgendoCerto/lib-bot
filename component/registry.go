@@ -24,13 +24,14 @@ func DefaultRegistry() *Registry {
 
 	// Registra todos os componentes padrão
 	reg.Register("message", NewMessageFactory(det))
-	reg.Register("text", NewTextFactory(det))
-	reg.Register("confirm", NewConfirmFactory(det))
 	reg.Register("buttons", NewButtonsFactory(det))
 	reg.Register("listpicker", NewListPickerFactory(det))
 	reg.Register("media", NewMediaFactory(det))
 	reg.Register("carousel", NewCarouselFactory(det))
 	reg.Register("delay", NewSimpleFactory(DelayFactory))
+	reg.Register("terms", NewTermsFactory(det))
+	reg.Register("feedback", NewFeedbackFactory(det))
+	reg.Register("global_start", NewGlobalStartFactory(det))
 
 	return reg
 }

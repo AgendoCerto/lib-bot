@@ -38,10 +38,14 @@ func (s *OutputMappingStep) validateNodeOutputs(node flow.Node, path string) []I
 		issues = append(issues, s.validateListPickerOutputs(node, path)...)
 	case "carousel":
 		issues = append(issues, s.validateCarouselOutputs(node, path)...)
-	case "confirm":
-		issues = append(issues, s.validateConfirmOutputs(node, path)...)
-	case "message", "media", "delay", "text":
+	case "message", "media", "delay":
 		issues = append(issues, s.validateNonInteractiveOutputs(node, path)...)
+	case "terms":
+		issues = append(issues, s.validateTermsOutputs(node, path)...)
+	case "feedback":
+		issues = append(issues, s.validateFeedbackOutputs(node, path)...)
+	case "global_start":
+		issues = append(issues, s.validateGlobalStartOutputs(node, path)...)
 	default:
 		issues = append(issues, Issue{
 			Code: "output.unknown_component", Severity: Err,
@@ -91,13 +95,14 @@ func (s *OutputMappingStep) validateButtonOutputs(node flow.Node, path string) [
 		}
 	}
 
-	// Verifica outputs obrigatórios para robustez
-	for _, required := range standardOutputs {
-		if !contains(outputs, required) {
+	// Verifica se outputs extras são válidos (permite outputs padrão)
+	validOutputs := append(buttonIDs, standardOutputs...)
+	for _, output := range outputs {
+		if !contains(validOutputs, output) {
 			issues = append(issues, Issue{
-				Code: "output.buttons.missing_standard", Severity: Warn,
+				Code: "output.buttons.invalid_output", Severity: Warn,
 				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("missing standard output '%s' - recommended for fallback handling", required),
+				Msg:  fmt.Sprintf("buttons component has unexpected output '%s'", output),
 			})
 		}
 	}
@@ -132,7 +137,7 @@ func (s *OutputMappingStep) validateListPickerOutputs(node flow.Node, path strin
 	}
 
 	outputs := node.Outputs
-	standardOutputs := []string{"timeout", "invalid", "cancelled"}
+	standardOutputs := []string{"timeout", "invalid", "fallback"}
 
 	// CRÍTICO: Cada item deve ter um output correspondente
 	for _, itemID := range itemIDs {
@@ -145,13 +150,14 @@ func (s *OutputMappingStep) validateListPickerOutputs(node flow.Node, path strin
 		}
 	}
 
-	// Verifica outputs obrigatórios
-	for _, required := range standardOutputs {
-		if !contains(outputs, required) {
+	// Verificar se outputs extras são válidos (permite outputs padrão)
+	validOutputs := append(itemIDs, standardOutputs...)
+	for _, output := range outputs {
+		if !contains(validOutputs, output) {
 			issues = append(issues, Issue{
-				Code: "output.listpicker.missing_standard", Severity: Warn,
+				Code: "output.listpicker.invalid_output", Severity: Warn,
 				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("missing standard output '%s' - recommended for error handling", required),
+				Msg:  fmt.Sprintf("listpicker component has unexpected output '%s'", output),
 			})
 		}
 	}
@@ -185,7 +191,7 @@ func (s *OutputMappingStep) validateCarouselOutputs(node flow.Node, path string)
 	}
 
 	outputs := node.Outputs
-	standardOutputs := []string{"timeout", "invalid"}
+	standardOutputs := []string{"timeout", "invalid", "fallback"}
 
 	// CRÍTICO: Cada botão de card deve ter um output correspondente
 	for _, buttonID := range carouselButtonIDs {
@@ -198,75 +204,16 @@ func (s *OutputMappingStep) validateCarouselOutputs(node flow.Node, path string)
 		}
 	}
 
-	// Verifica outputs obrigatórios
-	for _, required := range standardOutputs {
-		if !contains(outputs, required) {
+	// Verificar se outputs extras são válidos (permite outputs padrão)
+	validOutputs := append(carouselButtonIDs, standardOutputs...)
+	validOutputs = append(validOutputs, "complete") // carousel pode ter complete também
+	for _, output := range outputs {
+		if !contains(validOutputs, output) {
 			issues = append(issues, Issue{
-				Code: "output.carousel.missing_standard", Severity: Warn,
+				Code: "output.carousel.invalid_output", Severity: Warn,
 				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("missing standard output '%s' - recommended for error handling", required),
+				Msg:  fmt.Sprintf("carousel component has unexpected output '%s'", output),
 			})
-		}
-	}
-
-	return issues
-}
-
-// validateConfirmOutputs valida que outputs de confirm mapeiam para botões yes/no
-func (s *OutputMappingStep) validateConfirmOutputs(node flow.Node, path string) []Issue {
-	var issues []Issue
-
-	// Para confirm, verifica se os IDs dos botões estão presentes
-	confirmButtonIDs := s.extractConfirmButtonIDs(node.Props)
-	expectedButtons := 2
-
-	if len(confirmButtonIDs) == 0 {
-		// Se não há IDs, usa comportamento padrão
-		expectedOutputs := []string{"confirmed", "cancelled", "timeout"}
-		outputs := node.Outputs
-
-		for _, required := range expectedOutputs {
-			if !contains(outputs, required) {
-				issues = append(issues, Issue{
-					Code: "output.confirm.missing_default_output", Severity: Err,
-					Path: path + ".outputs",
-					Msg:  fmt.Sprintf("CRITICAL: confirm component missing default output '%s'", required),
-				})
-			}
-		}
-	} else {
-		// Se há IDs específicos, deve mapear para eles
-		if len(confirmButtonIDs) != expectedButtons {
-			issues = append(issues, Issue{
-				Code: "output.confirm.invalid_buttons", Severity: Err,
-				Path: path + ".props",
-				Msg:  fmt.Sprintf("confirm component must have exactly %d buttons (yes/no), got %d", expectedButtons, len(confirmButtonIDs)),
-			})
-		}
-
-		outputs := node.Outputs
-		standardOutputs := []string{"timeout"}
-
-		// CRÍTICO: Cada botão confirm deve ter um output correspondente
-		for _, buttonID := range confirmButtonIDs {
-			if !contains(outputs, buttonID) {
-				issues = append(issues, Issue{
-					Code: "output.confirm.missing_button_output", Severity: Err,
-					Path: path + ".outputs",
-					Msg:  fmt.Sprintf("CRITICAL: missing output for confirm button ID '%s' - this will cause engine failure", buttonID),
-				})
-			}
-		}
-
-		// Verifica outputs obrigatórios
-		for _, required := range standardOutputs {
-			if !contains(outputs, required) {
-				issues = append(issues, Issue{
-					Code: "output.confirm.missing_standard", Severity: Warn,
-					Path: path + ".outputs",
-					Msg:  fmt.Sprintf("missing standard output '%s' - recommended for timeout handling", required),
-				})
-			}
 		}
 	}
 
@@ -278,46 +225,144 @@ func (s *OutputMappingStep) validateNonInteractiveOutputs(node flow.Node, path s
 	var issues []Issue
 
 	outputs := node.Outputs
+	standardOutputs := []string{"timeout", "invalid", "fallback"}
 
 	switch node.Kind {
 	case "message":
-		expectedOutputs := []string{"complete"}
-		if !outputsMatch(outputs, expectedOutputs) {
-			issues = append(issues, Issue{
-				Code: "output.message.invalid_outputs", Severity: Err,
-				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("CRITICAL: message component must have outputs: %v, got: %v", expectedOutputs, outputs),
-			})
-		}
-	case "text":
-		expectedOutputs := []string{"sent", "failed", "timeout"}
-		for _, required := range expectedOutputs {
+		// message deve ter "complete" + outputs padrão opcionais
+		requiredOutputs := []string{"complete"}
+		for _, required := range requiredOutputs {
 			if !contains(outputs, required) {
 				issues = append(issues, Issue{
-					Code: "output.text.missing_output", Severity: Err,
+					Code: "output.message.missing_required", Severity: Err,
 					Path: path + ".outputs",
-					Msg:  fmt.Sprintf("CRITICAL: text component missing required output '%s'", required),
+					Msg:  fmt.Sprintf("CRITICAL: message component missing required output '%s'", required),
+				})
+			}
+		}
+		// Verificar se outputs extras são válidos
+		validOutputs := append(requiredOutputs, standardOutputs...)
+		for _, output := range outputs {
+			if !contains(validOutputs, output) {
+				issues = append(issues, Issue{
+					Code: "output.message.invalid_output", Severity: Warn,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("message component has unexpected output '%s'", output),
 				})
 			}
 		}
 	case "media":
-		expectedOutputs := []string{"sent", "failed", "timeout"}
-		for _, required := range expectedOutputs {
+		// media deve ter "sent" + outputs padrão opcionais
+		requiredOutputs := []string{"sent"}
+		for _, required := range requiredOutputs {
 			if !contains(outputs, required) {
 				issues = append(issues, Issue{
-					Code: "output.media.missing_output", Severity: Err,
+					Code: "output.media.missing_required", Severity: Err,
 					Path: path + ".outputs",
 					Msg:  fmt.Sprintf("CRITICAL: media component missing required output '%s'", required),
 				})
 			}
 		}
+		// Verificar se outputs extras são válidos
+		validOutputs := append(requiredOutputs, standardOutputs...)
+		for _, output := range outputs {
+			if !contains(validOutputs, output) {
+				issues = append(issues, Issue{
+					Code: "output.media.invalid_output", Severity: Warn,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("media component has unexpected output '%s'", output),
+				})
+			}
+		}
 	case "delay":
-		expectedOutputs := []string{"complete"}
-		if !outputsMatch(outputs, expectedOutputs) {
+		// delay deve ter "complete" + outputs padrão opcionais
+		requiredOutputs := []string{"complete"}
+		for _, required := range requiredOutputs {
+			if !contains(outputs, required) {
+				issues = append(issues, Issue{
+					Code: "output.delay.missing_required", Severity: Err,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("CRITICAL: delay component missing required output '%s'", required),
+				})
+			}
+		}
+		// Verificar se outputs extras são válidos
+		validOutputs := append(requiredOutputs, standardOutputs...)
+		for _, output := range outputs {
+			if !contains(validOutputs, output) {
+				issues = append(issues, Issue{
+					Code: "output.delay.invalid_output", Severity: Warn,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("delay component has unexpected output '%s'", output),
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+// validateTermsOutputs valida outputs do componente terms
+func (s *OutputMappingStep) validateTermsOutputs(node flow.Node, path string) []Issue {
+	var issues []Issue
+
+	outputs := node.Outputs
+	standardOutputs := []string{"timeout", "invalid", "fallback"}
+	requiredOutputs := []string{"accepted", "rejected"}
+
+	// CRÍTICO: terms deve ter outputs de aceito e rejeitado
+	for _, required := range requiredOutputs {
+		if !contains(outputs, required) {
 			issues = append(issues, Issue{
-				Code: "output.delay.invalid_outputs", Severity: Err,
+				Code: "output.terms.missing_required", Severity: Err,
 				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("CRITICAL: delay component must have outputs: %v, got: %v", expectedOutputs, outputs),
+				Msg:  fmt.Sprintf("CRITICAL: terms component missing required output '%s'", required),
+			})
+		}
+	}
+
+	// Verificar se outputs extras são válidos (permite outputs padrão)
+	validOutputs := append(requiredOutputs, standardOutputs...)
+	for _, output := range outputs {
+		if !contains(validOutputs, output) {
+			issues = append(issues, Issue{
+				Code: "output.terms.invalid_output", Severity: Warn,
+				Path: path + ".outputs",
+				Msg:  fmt.Sprintf("terms component has unexpected output '%s'", output),
+			})
+		}
+	}
+
+	return issues
+}
+
+// validateFeedbackOutputs valida outputs do componente feedback
+func (s *OutputMappingStep) validateFeedbackOutputs(node flow.Node, path string) []Issue {
+	var issues []Issue
+
+	outputs := node.Outputs
+	standardOutputs := []string{"timeout", "invalid", "fallback"}
+	requiredOutputs := []string{"submitted"}
+
+	// CRÍTICO: feedback deve ter output de submissão
+	for _, required := range requiredOutputs {
+		if !contains(outputs, required) {
+			issues = append(issues, Issue{
+				Code: "output.feedback.missing_required", Severity: Err,
+				Path: path + ".outputs",
+				Msg:  fmt.Sprintf("CRITICAL: feedback component missing required output '%s'", required),
+			})
+		}
+	}
+
+	// Verificar se outputs extras são válidos (permite outputs padrão)
+	validOutputs := append(requiredOutputs, standardOutputs...)
+	for _, output := range outputs {
+		if !contains(validOutputs, output) {
+			issues = append(issues, Issue{
+				Code: "output.feedback.invalid_output", Severity: Warn,
+				Path: path + ".outputs",
+				Msg:  fmt.Sprintf("feedback component has unexpected output '%s'", output),
 			})
 		}
 	}
@@ -387,25 +432,6 @@ func (s *OutputMappingStep) extractCarouselButtonIDs(props map[string]any) []str
 	return buttonIDs
 }
 
-func (s *OutputMappingStep) extractConfirmButtonIDs(props map[string]any) []string {
-	var buttonIDs []string
-
-	// Para confirm, verificar se existem IDs nos botões yes/no
-	if yes, ok := props["yes"].(map[string]interface{}); ok {
-		if id, ok := yes["id"].(string); ok && id != "" {
-			buttonIDs = append(buttonIDs, id)
-		}
-	}
-
-	if no, ok := props["no"].(map[string]interface{}); ok {
-		if id, ok := no["id"].(string); ok && id != "" {
-			buttonIDs = append(buttonIDs, id)
-		}
-	}
-
-	return buttonIDs
-}
-
 // Funções utilitárias
 
 func contains(slice []string, item string) bool {
@@ -415,6 +441,25 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// validateGlobalStartOutputs valida outputs do componente global_start
+func (s *OutputMappingStep) validateGlobalStartOutputs(node flow.Node, path string) []Issue {
+	var issues []Issue
+
+	outputs := node.Outputs
+	expectedOutputs := []string{"start"}
+
+	// global_start deve ter exatamente o output "start"
+	if !outputsMatch(outputs, expectedOutputs) {
+		issues = append(issues, Issue{
+			Code: "output.global_start.invalid_outputs", Severity: Err,
+			Path: path + ".outputs",
+			Msg:  fmt.Sprintf("global_start must have exactly ['start'] output, got %v", outputs),
+		})
+	}
+
+	return issues
 }
 
 func outputsMatch(actual, expected []string) bool {

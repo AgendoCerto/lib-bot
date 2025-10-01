@@ -5,6 +5,7 @@ import (
 
 	"github.com/AgendoCerto/lib-bot/hsm"
 	"github.com/AgendoCerto/lib-bot/liquid"
+	"github.com/AgendoCerto/lib-bot/persistence"
 	"github.com/AgendoCerto/lib-bot/runtime"
 )
 
@@ -76,9 +77,16 @@ func (f *MessageFactory) New(_ string, props map[string]any) (Component, error) 
 		return nil, err
 	}
 
-	return &MessageWithBehavior{
-		message:  m,
-		behavior: behavior,
+	// Parse persistence
+	persistence, err := ParsePersistence(props)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MessageWithBehaviorAndPersistence{
+		message:     m,
+		behavior:    behavior,
+		persistence: persistence,
 	}, nil
 }
 
@@ -98,6 +106,29 @@ func (mwb *MessageWithBehavior) Spec(ctx context.Context, rctx runtime.Context) 
 		return spec, err
 	}
 	spec.Behavior = mwb.behavior
+	return spec, nil
+}
+
+// MessageWithBehaviorAndPersistence é um wrapper que inclui behaviors e persistência
+type MessageWithBehaviorAndPersistence struct {
+	message     *Message
+	behavior    *ComponentBehavior
+	persistence *persistence.Config
+}
+
+func (mwbp *MessageWithBehaviorAndPersistence) Kind() string {
+	return mwbp.message.Kind()
+}
+
+func (mwbp *MessageWithBehaviorAndPersistence) Spec(ctx context.Context, rctx runtime.Context) (ComponentSpec, error) {
+	spec, err := mwbp.message.Spec(ctx, rctx)
+	if err != nil {
+		return spec, err
+	}
+
+	spec.Behavior = mwbp.behavior
+	spec.Persistence = mwbp.persistence
+
 	return spec, nil
 }
 
