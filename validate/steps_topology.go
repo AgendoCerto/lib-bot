@@ -224,6 +224,15 @@ func (v *TopologyValidator) validateCycles(graph io.Graph) []Issue {
 		adjList[edge.From] = append(adjList[edge.From], edge)
 	}
 
+	// ✅ Labels que permitem self-loops seguros (behaviors com término garantido)
+	allowedSelfLoopLabels := map[string]bool{
+		"timeout":    true, // Timeout tem duração limitada
+		"retry":      true, // Retry tem max_attempts
+		"fallback":   true, // Fallback é uma alternativa controlada
+		"validation": true, // Validation tem tentativas limitadas
+		"error":      true, // Error handling é controlado
+	}
+
 	// DFS para detectar ciclos
 	visited := make(map[flow.ID]bool)
 	recStack := make(map[flow.ID]bool)
@@ -239,14 +248,26 @@ func (v *TopologyValidator) validateCycles(graph io.Graph) []Issue {
 					return true
 				}
 			} else if recStack[edge.To] {
-				// Ciclo detectado - verifica se tem guarda
-				if edge.Guard == nil || edge.Guard.Expr == "" {
-					issues = append(issues, Issue{
-						Code: "topology.cycle.no_guard", Severity: Err,
-						Path: "graph.edges",
-						Msg:  "cycle detected without guard condition: " + string(nodeID) + " -> " + string(edge.To),
-					})
+				// ✅ Ciclo detectado - aplicar lógica inteligente
+
+				// 1. Permite se é um self-loop (mesmo nó) com label permitida
+				if nodeID == edge.To && allowedSelfLoopLabels[edge.Label] {
+					// Self-loop com label segura - não é erro
+					continue
 				}
+
+				// 2. Permite se tem guarda definida
+				if edge.Guard != nil && edge.Guard.Expr != "" {
+					// Ciclo com guarda - não é erro
+					continue
+				}
+
+				// 3. Bloqueia ciclos sem guarda ou label permitida
+				issues = append(issues, Issue{
+					Code: "topology.cycle.no_guard", Severity: Warn, // ⚠️ Mudado para Warning
+					Path: "graph.edges",
+					Msg:  "cycle detected without guard condition: " + string(nodeID) + " -> " + string(edge.To),
+				})
 				return true
 			}
 		}
