@@ -20,9 +20,10 @@ func NewDesignValidationPipeline() *DesignValidationPipeline {
 		validators: []DesignValidator{
 			NewAdapterComplianceStep(),
 			NewDocumentationComplianceStep(),
-			NewOutputMappingStep(),  // CRÍTICO: Validação de mapeamento output-to-ID
-			NewLiquidLengthStep(),   // CRÍTICO: Validação de limites considerando templates Liquid
-			NewProfileContextStep(), // NOVO: Validação de profile context
+			NewComponentBehaviorStep(), // CRÍTICO: Validação de behaviors permitidos por componente
+			NewOutputMappingStep(),     // CRÍTICO: Validação de mapeamento output-to-ID
+			NewLiquidLengthStep(),      // CRÍTICO: Validação de limites considerando templates Liquid
+			NewProfileContextStep(),    // NOVO: Validação de profile context
 		},
 	}
 }
