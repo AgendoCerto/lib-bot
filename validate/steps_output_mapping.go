@@ -232,7 +232,7 @@ func (s *OutputMappingStep) validateNonInteractiveOutputs(node flow.Node, path s
 		// message pode ter "complete" OU "response" dependendo do behavior.await
 		// Se await.enabled=true → usa "response" (aguarda resposta do usuário)
 		// Se await.enabled=false → usa "complete" (apenas envia)
-		
+
 		// Extrair await do behavior
 		hasAwait := false
 		props := node.Props
@@ -245,7 +245,7 @@ func (s *OutputMappingStep) validateNonInteractiveOutputs(node flow.Node, path s
 				}
 			}
 		}
-		
+
 		if hasAwait {
 			// Modo interativo: espera resposta
 			requiredOutputs := []string{"response"}
