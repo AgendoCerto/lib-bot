@@ -34,6 +34,13 @@ type Button struct {
 	Kind    string    `json:"kind"`    // Tipo: reply|url|call
 }
 
+// AwaitBehavior configura aguardar resposta do usuário
+type AwaitBehavior struct {
+	Enabled        bool       `json:"enabled"`                   // Ativar modo de espera
+	Timeout        int        `json:"timeout"`                   // Timeout em segundos (0 = aguardar indefinidamente)
+	TimeoutMessage *TextValue `json:"timeout_message,omitempty"` // Mensagem quando timeout ocorrer
+}
+
 // TimeoutBehavior configura comportamento de timeout
 type TimeoutBehavior struct {
 	Duration    int               `json:"duration"`               // Timeout em segundos
@@ -68,6 +75,7 @@ type EscalationConfig struct {
 
 // ComponentBehavior agrupa todos os behaviors de um componente
 type ComponentBehavior struct {
+	Await      *AwaitBehavior      `json:"await,omitempty"`      // Configuração de aguardar entrada
 	Timeout    *TimeoutBehavior    `json:"timeout,omitempty"`    // Configuração de timeout
 	Validation *ValidationBehavior `json:"validation,omitempty"` // Configuração de validação
 	Delay      *DelayBehavior      `json:"delay,omitempty"`      // Configuração de delays
@@ -124,6 +132,16 @@ func ParseBehavior(props map[string]any, det liquid.Detector) (*ComponentBehavio
 	behavior := &ComponentBehavior{}
 	hasAnyBehavior := false
 
+	// Parse await behavior
+	if awaitRaw, ok := props["await"].(map[string]any); ok {
+		await, err := parseAwaitBehavior(awaitRaw, det)
+		if err != nil {
+			return nil, err
+		}
+		behavior.Await = await
+		hasAnyBehavior = true
+	}
+
 	// Parse timeout behavior
 	if timeoutRaw, ok := props["timeout"].(map[string]any); ok {
 		timeout, err := parseTimeoutBehavior(timeoutRaw, det)
@@ -171,6 +189,34 @@ func ParseBehavior(props map[string]any, det liquid.Detector) (*ComponentBehavio
 		return nil, nil
 	}
 	return behavior, nil
+}
+
+func parseAwaitBehavior(raw map[string]any, det liquid.Detector) (*AwaitBehavior, error) {
+	await := &AwaitBehavior{}
+
+	if enabled, ok := raw["enabled"].(bool); ok {
+		await.Enabled = enabled
+	}
+
+	if timeout, ok := raw["timeout"].(float64); ok {
+		await.Timeout = int(timeout)
+	} else if timeout, ok := raw["timeout"].(int); ok {
+		await.Timeout = timeout
+	}
+
+	if timeoutMessageText, ok := raw["timeout_message"].(string); ok {
+		meta, err := det.Parse(context.Background(), timeoutMessageText)
+		if err != nil {
+			return nil, err
+		}
+		await.TimeoutMessage = &TextValue{
+			Raw:      timeoutMessageText,
+			Template: meta.IsTemplate,
+			Liquid:   meta,
+		}
+	}
+
+	return await, nil
 }
 
 func parseTimeoutBehavior(raw map[string]any, det liquid.Detector) (*TimeoutBehavior, error) {
