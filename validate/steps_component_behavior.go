@@ -54,9 +54,9 @@ func (s *ComponentBehaviorStep) validateComponentBehavior(node flow.Node, path s
 	for behaviorType := range behaviorMap {
 		if !contains(allowedBehaviors, behaviorType) {
 			severity := Err
-			
+
 			// Mensagem genérica mas informativa
-			msg := fmt.Sprintf("component '%s' cannot have '%s' behavior - allowed behaviors: %v", 
+			msg := fmt.Sprintf("component '%s' cannot have '%s' behavior - allowed behaviors: %v",
 				node.Kind, behaviorType, allowedBehaviors)
 
 			issues = append(issues, Issue{
@@ -106,7 +106,7 @@ func (s *ComponentBehaviorStep) getAllowedBehaviors(component string) []string {
 		//   1. Usuário clica/escolhe → Output normal (btn_1, item_x)
 		//   2. Usuário DIGITA TEXTO → FALLBACK (não reconhecemos)
 		//   3. Timeout → TIMEOUT output
-		// 
+		//
 		// - timeout: limite de tempo para escolher
 		// - fallback: usuário DIGITOU ao invés de clicar
 		// - delay: esperar antes/depois
