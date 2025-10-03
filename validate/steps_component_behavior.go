@@ -83,17 +83,24 @@ func (s *ComponentBehaviorStep) validateComponentBehavior(node flow.Node, path s
 func (s *ComponentBehaviorStep) getAllowedBehaviors(component string) []string {
 	switch component {
 	case "message":
-		// MESSAGE: Envia mensagem, NÃO espera resposta
-		// - timeout: limite de tempo para ENVIAR a mensagem (problemas de rede)
+		// MESSAGE: Pode enviar OU esperar resposta (com await)
+		// - timeout: limite de tempo para ENVIAR a mensagem OU aguardar resposta
 		// - delay: esperar antes/depois de enviar
-		// - persistence: NÃO - não coleta dados
-		return []string{"timeout", "delay"}
+		// - await: aguardar resposta do usuário (novo comportamento)
+		// - fallback: se await+validation e resposta inválida
+		// - validation: validar resposta quando await=true
+		// - retry: tentar novamente se timeout ou validation falhar
+		return []string{"timeout", "delay", "await", "fallback", "validation", "retry"}
 
 	case "media":
-		// MEDIA: Envia mídia, NÃO espera resposta
-		// - timeout: limite de tempo para ENVIAR a mídia
+		// MEDIA: Pode enviar OU esperar resposta (com await)
+		// - timeout: limite de tempo para ENVIAR a mídia OU aguardar resposta
 		// - delay: esperar antes/depois de enviar
-		return []string{"timeout", "delay"}
+		// - await: aguardar resposta do usuário (novo comportamento)
+		// - fallback: se await+validation e resposta inválida
+		// - validation: validar resposta quando await=true
+		// - retry: tentar novamente se timeout ou validation falhar
+		return []string{"timeout", "delay", "await", "fallback", "validation", "retry"}
 
 	case "delay":
 		// DELAY: Apenas controla tempo, não interage

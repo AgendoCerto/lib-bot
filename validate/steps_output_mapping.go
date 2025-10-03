@@ -229,26 +229,86 @@ func (s *OutputMappingStep) validateNonInteractiveOutputs(node flow.Node, path s
 
 	switch node.Kind {
 	case "message":
-		// message deve ter "complete" + outputs padrão opcionais
-		requiredOutputs := []string{"complete"}
-		for _, required := range requiredOutputs {
-			if !contains(outputs, required) {
-				issues = append(issues, Issue{
-					Code: "output.message.missing_required", Severity: Err,
-					Path: path + ".outputs",
-					Msg:  fmt.Sprintf("CRITICAL: message component missing required output '%s'", required),
-				})
+		// message pode ter "complete" OU "response" dependendo do behavior.await
+		// Se await.enabled=true → usa "response" (aguarda resposta do usuário)
+		// Se await.enabled=false → usa "complete" (apenas envia)
+		
+		// Extrair await do behavior
+		hasAwait := false
+		props := node.Props
+		if props != nil {
+			if behavior, ok := props["behavior"].(map[string]interface{}); ok {
+				if awaitCfg, ok := behavior["await"].(map[string]interface{}); ok {
+					if enabled, ok := awaitCfg["enabled"].(bool); ok {
+						hasAwait = enabled
+					}
+				}
 			}
 		}
-		// Verificar se outputs extras são válidos
-		validOutputs := append(requiredOutputs, standardOutputs...)
-		for _, output := range outputs {
-			if !contains(validOutputs, output) {
-				issues = append(issues, Issue{
-					Code: "output.message.invalid_output", Severity: Warn,
-					Path: path + ".outputs",
-					Msg:  fmt.Sprintf("message component has unexpected output '%s'", output),
-				})
+		
+		if hasAwait {
+			// Modo interativo: espera resposta
+			requiredOutputs := []string{"response"}
+			for _, required := range requiredOutputs {
+				if !contains(outputs, required) {
+					issues = append(issues, Issue{
+						Code: "output.message.missing_required", Severity: Err,
+						Path: path + ".outputs",
+						Msg:  fmt.Sprintf("CRITICAL: message component with await=true missing required output '%s'", required),
+					})
+				}
+			}
+			// Verificar se outputs extras são válidos
+			validOutputs := append(requiredOutputs, standardOutputs...)
+			for _, output := range outputs {
+				if !contains(validOutputs, output) {
+					// Se tem "complete" mas deveria ter "response", avisar
+					if output == "complete" {
+						issues = append(issues, Issue{
+							Code: "output.message.invalid_output", Severity: Warn,
+							Path: path + ".outputs",
+							Msg:  "message component with await=true should use 'response' output instead of 'complete'",
+						})
+					} else {
+						issues = append(issues, Issue{
+							Code: "output.message.invalid_output", Severity: Warn,
+							Path: path + ".outputs",
+							Msg:  fmt.Sprintf("message component has unexpected output '%s'", output),
+						})
+					}
+				}
+			}
+		} else {
+			// Modo não-interativo: apenas envia
+			requiredOutputs := []string{"complete"}
+			for _, required := range requiredOutputs {
+				if !contains(outputs, required) {
+					issues = append(issues, Issue{
+						Code: "output.message.missing_required", Severity: Err,
+						Path: path + ".outputs",
+						Msg:  fmt.Sprintf("CRITICAL: message component missing required output '%s'", required),
+					})
+				}
+			}
+			// Verificar se outputs extras são válidos
+			validOutputs := append(requiredOutputs, standardOutputs...)
+			for _, output := range outputs {
+				if !contains(validOutputs, output) {
+					// Se tem "response" mas deveria ter "complete", avisar
+					if output == "response" {
+						issues = append(issues, Issue{
+							Code: "output.message.invalid_output", Severity: Warn,
+							Path: path + ".outputs",
+							Msg:  "message component with await=false should use 'complete' output instead of 'response'",
+						})
+					} else {
+						issues = append(issues, Issue{
+							Code: "output.message.invalid_output", Severity: Warn,
+							Path: path + ".outputs",
+							Msg:  fmt.Sprintf("message component has unexpected output '%s'", output),
+						})
+					}
+				}
 			}
 		}
 	case "media":
