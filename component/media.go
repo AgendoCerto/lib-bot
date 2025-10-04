@@ -116,10 +116,11 @@ func NewMediaFactory(det liquid.Detector) *MediaFactory {
 func (f *MediaFactory) New(_ string, props map[string]any) (Component, error) {
 	m := NewMedia(f.det)
 
-	url, _ := props["url"].(string)
+	// CORRIGIDO: seguir padrão do Spec() que usa media_url e media_type
+	url, _ := props[""].(string)
 	caption, _ := props["caption"].(string)
 	filename, _ := props["filename"].(string)
-	mediaType, _ := props["type"].(string)
+	mediaType, _ := props["media_type"].(string)
 	ptt, _ := props["ptt"].(bool) // Push-to-talk para áudio
 
 	// Define o tipo baseado na propriedade ou detecta pela URL
