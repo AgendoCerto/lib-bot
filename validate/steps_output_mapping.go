@@ -84,37 +84,57 @@ func (s *OutputMappingStep) validateButtonOutputs(node flow.Node, path string) [
 	outputs := node.Outputs
 	standardOutputs := []string{"timeout", "invalid", "fallback"}
 
-	// CRÍTICO: Cada botão deve ter um output correspondente
-	for _, buttonID := range buttonIDs {
-		if !contains(outputs, buttonID) {
-			issues = append(issues, Issue{
-				Code: "output.buttons.missing_button_output", Severity: Err,
-				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("CRITICAL: missing output for button ID '%s' - this will cause engine failure", buttonID),
-			})
-		}
-	}
+	// SPEC V2.2: Suporta output único "selected" OU outputs individuais (v2.1)
+	hasSelectedOutput := contains(outputs, "selected")
 
-	// Verifica se outputs extras são válidos (permite outputs padrão)
-	validOutputs := append(buttonIDs, standardOutputs...)
-	for _, output := range outputs {
-		if !contains(validOutputs, output) {
-			issues = append(issues, Issue{
-				Code: "output.buttons.invalid_output", Severity: Warn,
-				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("buttons component has unexpected output '%s'", output),
-			})
-		}
-	}
+	if hasSelectedOutput {
+		// Modo v2.2: output único "selected" é válido
+		// Não precisa de outputs individuais
 
-	// CRÍTICO: Verifica outputs inválidos que causarão falha na engine
-	for _, output := range outputs {
-		if !contains(buttonIDs, output) && !contains(standardOutputs, output) {
-			issues = append(issues, Issue{
-				Code: "output.buttons.invalid_output", Severity: Err,
-				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("CRITICAL: output '%s' does not map to any button ID or standard output - engine will fail", output),
-			})
+		// Verifica se tem outputs extras além de "selected" e standardOutputs
+		validOutputsV22 := append([]string{"selected"}, standardOutputs...)
+		for _, output := range outputs {
+			if !contains(validOutputsV22, output) {
+				issues = append(issues, Issue{
+					Code: "output.buttons.invalid_output_v22", Severity: Warn,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("buttons (v2.2) has unexpected output '%s' - only 'selected' and standard outputs are valid", output),
+				})
+			}
+		}
+	} else {
+		// Modo v2.1: CRÍTICO: Cada botão deve ter um output correspondente
+		for _, buttonID := range buttonIDs {
+			if !contains(outputs, buttonID) {
+				issues = append(issues, Issue{
+					Code: "output.buttons.missing_button_output", Severity: Err,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("CRITICAL: missing output for button ID '%s' - this will cause engine failure", buttonID),
+				})
+			}
+		}
+
+		// Verifica se outputs extras são válidos (permite outputs padrão)
+		validOutputs := append(buttonIDs, standardOutputs...)
+		for _, output := range outputs {
+			if !contains(validOutputs, output) {
+				issues = append(issues, Issue{
+					Code: "output.buttons.invalid_output", Severity: Warn,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("buttons component has unexpected output '%s'", output),
+				})
+			}
+		}
+
+		// CRÍTICO: Verifica outputs inválidos que causarão falha na engine
+		for _, output := range outputs {
+			if !contains(buttonIDs, output) && !contains(standardOutputs, output) {
+				issues = append(issues, Issue{
+					Code: "output.buttons.invalid_output", Severity: Err,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("CRITICAL: output '%s' does not map to any button ID or standard output - engine will fail", output),
+				})
+			}
 		}
 	}
 
@@ -139,37 +159,57 @@ func (s *OutputMappingStep) validateListPickerOutputs(node flow.Node, path strin
 	outputs := node.Outputs
 	standardOutputs := []string{"timeout", "invalid", "fallback"}
 
-	// CRÍTICO: Cada item deve ter um output correspondente
-	for _, itemID := range itemIDs {
-		if !contains(outputs, itemID) {
-			issues = append(issues, Issue{
-				Code: "output.listpicker.missing_item_output", Severity: Err,
-				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("CRITICAL: missing output for list item ID '%s' - this will cause engine failure", itemID),
-			})
-		}
-	}
+	// SPEC V2.2: Suporta output único "selected" OU outputs individuais (v2.1)
+	hasSelectedOutput := contains(outputs, "selected")
 
-	// Verificar se outputs extras são válidos (permite outputs padrão)
-	validOutputs := append(itemIDs, standardOutputs...)
-	for _, output := range outputs {
-		if !contains(validOutputs, output) {
-			issues = append(issues, Issue{
-				Code: "output.listpicker.invalid_output", Severity: Warn,
-				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("listpicker component has unexpected output '%s'", output),
-			})
-		}
-	}
+	if hasSelectedOutput {
+		// Modo v2.2: output único "selected" é válido
+		// Não precisa de outputs individuais
 
-	// CRÍTICO: Verifica outputs inválidos
-	for _, output := range outputs {
-		if !contains(itemIDs, output) && !contains(standardOutputs, output) {
-			issues = append(issues, Issue{
-				Code: "output.listpicker.invalid_output", Severity: Err,
-				Path: path + ".outputs",
-				Msg:  fmt.Sprintf("CRITICAL: output '%s' does not map to any list item ID or standard output - engine will fail", output),
-			})
+		// Verifica se tem outputs extras além de "selected" e standardOutputs
+		validOutputsV22 := append([]string{"selected"}, standardOutputs...)
+		for _, output := range outputs {
+			if !contains(validOutputsV22, output) {
+				issues = append(issues, Issue{
+					Code: "output.listpicker.invalid_output_v22", Severity: Warn,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("listpicker (v2.2) has unexpected output '%s' - only 'selected' and standard outputs are valid", output),
+				})
+			}
+		}
+	} else {
+		// Modo v2.1: CRÍTICO: Cada item deve ter um output correspondente
+		for _, itemID := range itemIDs {
+			if !contains(outputs, itemID) {
+				issues = append(issues, Issue{
+					Code: "output.listpicker.missing_item_output", Severity: Err,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("CRITICAL: missing output for list item ID '%s' - this will cause engine failure", itemID),
+				})
+			}
+		}
+
+		// Verificar se outputs extras são válidos (permite outputs padrão)
+		validOutputs := append(itemIDs, standardOutputs...)
+		for _, output := range outputs {
+			if !contains(validOutputs, output) {
+				issues = append(issues, Issue{
+					Code: "output.listpicker.invalid_output", Severity: Warn,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("listpicker component has unexpected output '%s'", output),
+				})
+			}
+		}
+
+		// CRÍTICO: Verifica outputs inválidos que causarão falha na engine
+		for _, output := range outputs {
+			if !contains(itemIDs, output) && !contains(standardOutputs, output) {
+				issues = append(issues, Issue{
+					Code: "output.listpicker.invalid_output", Severity: Err,
+					Path: path + ".outputs",
+					Msg:  fmt.Sprintf("CRITICAL: output '%s' does not map to any list item ID or standard output - engine will fail", output),
+				})
+			}
 		}
 	}
 
@@ -438,7 +478,15 @@ func (s *OutputMappingStep) extractButtonIDs(props map[string]any) []string {
 	if buttons, ok := props["buttons"].([]interface{}); ok {
 		for _, btn := range buttons {
 			if btnMap, ok := btn.(map[string]interface{}); ok {
-				if id, ok := btnMap["id"].(string); ok && id != "" {
+				// Suporta tanto "id" (v2.1) quanto "payload" (v2.2)
+				var id string
+				if idVal, ok := btnMap["id"].(string); ok && idVal != "" {
+					id = idVal
+				} else if payloadVal, ok := btnMap["payload"].(string); ok && payloadVal != "" {
+					id = payloadVal
+				}
+
+				if id != "" {
 					buttonIDs = append(buttonIDs, id)
 				}
 			}

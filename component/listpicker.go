@@ -12,6 +12,8 @@ type ListPicker struct {
 	text       string          // Texto principal
 	buttonText string          // Texto do botão da lista
 	sections   []SectionData   // Seções da lista
+	header     string          // WhatsApp: header opcional (≤60 chars)
+	footer     string          // WhatsApp: footer opcional (≤60 chars)
 	det        liquid.Detector // Detector para parsing de templates Liquid
 }
 
@@ -54,6 +56,20 @@ func (l *ListPicker) WithButtonText(s string) *ListPicker {
 	return &cp
 }
 
+// WithHeader define o header (WhatsApp: ≤60 chars)
+func (l *ListPicker) WithHeader(s string) *ListPicker {
+	cp := *l
+	cp.header = s
+	return &cp
+}
+
+// WithFooter define o footer (WhatsApp: ≤60 chars)
+func (l *ListPicker) WithFooter(s string) *ListPicker {
+	cp := *l
+	cp.footer = s
+	return &cp
+}
+
 // AddSection adiciona uma seção com itens
 func (l *ListPicker) AddSection(title string, items []ItemData) *ListPicker {
 	cp := *l
@@ -86,14 +102,23 @@ func (l *ListPicker) Spec(ctx context.Context, _ runtime.Context) (ComponentSpec
 		return ComponentSpec{}, err
 	}
 
-	// Cria metadata específica para lista
+	// Cria metadata específica para lista com spec v2.2
 	meta := map[string]any{
+		"output_mode": "single", // v2.2: usa output único "selected" ao invés de item IDs
 		"button_text": TextValue{
 			Raw:      l.buttonText,
 			Template: btnMeta.IsTemplate,
 			Liquid:   btnMeta,
 		},
 		"sections": l.sections,
+	}
+
+	// WhatsApp: header e footer opcionais
+	if l.header != "" {
+		meta["header"] = l.header
+	}
+	if l.footer != "" {
+		meta["footer"] = l.footer
 	}
 
 	return ComponentSpec{
@@ -122,6 +147,14 @@ func (f *ListPickerFactory) New(_ string, props map[string]any) (Component, erro
 	// Texto do botão
 	if btnText, _ := props["button_text"].(string); btnText != "" {
 		l = l.WithButtonText(btnText)
+	}
+
+	// WhatsApp: header e footer opcionais
+	if header, _ := props["header"].(string); header != "" {
+		l = l.WithHeader(header)
+	}
+	if footer, _ := props["footer"].(string); footer != "" {
+		l = l.WithFooter(footer)
 	}
 
 	// Seções

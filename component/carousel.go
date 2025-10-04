@@ -89,11 +89,9 @@ func (c *Carousel) Spec(ctx context.Context, _ runtime.Context) (ComponentSpec, 
 
 	// Processa cards - aplica parsing Liquid nos textos
 	processedCards := make([]CardData, 0, len(c.cards))
-	for _, card := range c.cards {
-		// Para simplificar, não aplicamos Liquid parsing nos cards aqui
-		// mas isso poderia ser expandido conforme necessário
-		processedCards = append(processedCards, card)
-	}
+	// Para simplificar, não aplicamos Liquid parsing nos cards aqui
+	// mas isso poderia ser expandido conforme necessário
+	processedCards = append(processedCards, c.cards...)
 
 	// Cria metadata específica para carrossel
 	meta := map[string]any{

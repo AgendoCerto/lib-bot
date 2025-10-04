@@ -13,6 +13,7 @@ type Media struct {
 	caption   string          // Legenda opcional
 	filename  string          // Nome do arquivo (para documentos)
 	mediaType string          // Tipo: image, video, audio, document, sticker
+	ptt       bool            // Push-to-talk (para áudio como mensagem de voz)
 	det       liquid.Detector // Detector para parsing de templates Liquid
 }
 
@@ -42,11 +43,12 @@ func (m *Media) WithVideo(url, caption string) *Media {
 	return &cp
 }
 
-// WithAudio define um áudio
-func (m *Media) WithAudio(url string) *Media {
+// WithAudio define um áudio (com opção de push-to-talk para mensagem de voz)
+func (m *Media) WithAudio(url string, ptt bool) *Media {
 	cp := *m
 	cp.mediaURL = url
 	cp.mediaType = "audio"
+	cp.ptt = ptt
 	return &cp
 }
 
@@ -91,6 +93,9 @@ func (m *Media) Spec(ctx context.Context, _ runtime.Context) (ComponentSpec, err
 	if m.filename != "" {
 		meta["filename"] = m.filename
 	}
+	if m.mediaType == "audio" {
+		meta["ptt"] = m.ptt // Push-to-talk (mensagem de voz)
+	}
 
 	return ComponentSpec{
 		Kind:     "media",
@@ -115,6 +120,7 @@ func (f *MediaFactory) New(_ string, props map[string]any) (Component, error) {
 	caption, _ := props["caption"].(string)
 	filename, _ := props["filename"].(string)
 	mediaType, _ := props["type"].(string)
+	ptt, _ := props["ptt"].(bool) // Push-to-talk para áudio
 
 	// Define o tipo baseado na propriedade ou detecta pela URL
 	switch mediaType {
@@ -123,7 +129,7 @@ func (f *MediaFactory) New(_ string, props map[string]any) (Component, error) {
 	case "video":
 		m = m.WithVideo(url, caption)
 	case "audio":
-		m = m.WithAudio(url)
+		m = m.WithAudio(url, ptt)
 	case "document":
 		m = m.WithDocument(url, caption, filename)
 	case "sticker":

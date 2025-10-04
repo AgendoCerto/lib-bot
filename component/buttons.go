@@ -9,8 +9,10 @@ import (
 
 // Buttons componente para mensagens com botões interativos
 type Buttons struct {
-	text    string          // Texto principal
-	buttons []ButtonData    // Lista de botões
+	text    string          // Texto principal (body)
+	header  string          // Header opcional (≤60 chars WhatsApp)
+	footer  string          // Footer opcional (≤60 chars WhatsApp)
+	buttons []ButtonData    // Lista de botões (máx 3 no WhatsApp)
 	det     liquid.Detector // Detector para parsing de templates Liquid
 }
 
@@ -30,10 +32,24 @@ func NewButtons(det liquid.Detector) *Buttons {
 // Kind retorna o tipo do componente
 func (b *Buttons) Kind() string { return "buttons" }
 
-// WithText define o texto principal
+// WithText define o texto principal (body)
 func (b *Buttons) WithText(s string) *Buttons {
 	cp := *b
 	cp.text = s
+	return &cp
+}
+
+// WithHeader define o header opcional
+func (b *Buttons) WithHeader(s string) *Buttons {
+	cp := *b
+	cp.header = s
+	return &cp
+}
+
+// WithFooter define o footer opcional
+func (b *Buttons) WithFooter(s string) *Buttons {
+	cp := *b
+	cp.footer = s
 	return &cp
 }
 
@@ -90,15 +106,30 @@ func (b *Buttons) Spec(ctx context.Context, _ runtime.Context) (ComponentSpec, e
 				Template: labelMeta.IsTemplate,
 				Liquid:   labelMeta,
 			},
-			Payload: btn.Payload,
+			Payload: btn.Kind,
 			Kind:    btn.Kind,
 		})
+	}
+
+	// Metadata para spec v2.2 - output único "selected"
+	meta := map[string]any{
+		"output_mode": "single",  // v2.2: usa output único "selected" ao invés de btn_1, btn_2...
+		"buttons":     b.buttons, // Lista completa de botões com dados
+	}
+
+	// WhatsApp: header e footer opcionais
+	if b.header != "" {
+		meta["header"] = b.header
+	}
+	if b.footer != "" {
+		meta["footer"] = b.footer
 	}
 
 	return ComponentSpec{
 		Kind:    "buttons",
 		Text:    textVal,
 		Buttons: buttons,
+		Meta:    meta,
 	}, nil
 }
 
@@ -116,6 +147,14 @@ func (f *ButtonsFactory) New(_ string, props map[string]any) (Component, error) 
 	// Texto principal
 	if text, _ := props["text"].(string); text != "" {
 		b = b.WithText(text)
+	}
+
+	// WhatsApp: header e footer opcionais
+	if header, _ := props["header"].(string); header != "" {
+		b = b.WithHeader(header)
+	}
+	if footer, _ := props["footer"].(string); footer != "" {
+		b = b.WithFooter(footer)
 	}
 
 	// Botões

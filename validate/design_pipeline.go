@@ -24,6 +24,7 @@ func NewDesignValidationPipeline() *DesignValidationPipeline {
 			NewOutputMappingStep(),     // CRÍTICO: Validação de mapeamento output-to-ID
 			NewLiquidLengthStep(),      // CRÍTICO: Validação de limites considerando templates Liquid
 			NewProfileContextStep(),    // NOVO: Validação de profile context
+			NewWhatsAppLimitsStep(),    // NOVO: Validação de limites WhatsApp Business API
 		},
 	}
 }

@@ -1,4 +1,4 @@
-// Package service - BotService unificado para manipulação simplificada de bots
+// Package service - BotService unificado para manipulação de bots
 package service
 
 import (
@@ -10,11 +10,10 @@ import (
 	"github.com/AgendoCerto/lib-bot/io"
 )
 
-// BotService é o serviço principal que unifica todas as operações de bot
-// Fornece interface simplificada e integrada com a lib
+// BotService é o serviço unificado que manipula designs diretamente (sem patches)
+// Suporta WhatsApp completo (header/footer/ptt) + funções auxiliares (GetBot, Clone, Import)
 type BotService struct {
 	validation *ValidationService
-	design     *DesignService
 	store      *StoreService
 }
 
@@ -35,32 +34,6 @@ type BotInfo struct {
 	Checksum    string            `json:"checksum"`
 }
 
-// NodeInfo representa informações de um nó
-type NodeInfo struct {
-	ID       string                 `json:"id"`
-	Kind     string                 `json:"kind"`
-	Title    string                 `json:"title"`
-	Props    map[string]interface{} `json:"props"`
-	Inputs   []string               `json:"inputs"`
-	Outputs  []string               `json:"outputs"`
-	Position *Position              `json:"position,omitempty"`
-}
-
-// Position representa posição visual do nó
-type Position struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
-
-// EdgeInfo representa informações de uma conexão
-type EdgeInfo struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Label    string `json:"label"`
-	Output   string `json:"output,omitempty"`
-	Priority int    `json:"priority,omitempty"`
-}
-
 // ValidationIssue representa um problema de validação
 type ValidationIssue struct {
 	Code     string `json:"code"`
@@ -69,44 +42,25 @@ type ValidationIssue struct {
 	Path     string `json:"path"`
 }
 
-// CreateBotRequest request para criação de bot
-type CreateBotRequest struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Channels    []string `json:"channels,omitempty"`
-	AdapterName string   `json:"adapter_name"`
-}
-
-// NewBotService cria uma nova instância do serviço unificado
+// NewBotService cria instância simplificada
 func NewBotService() *BotService {
-	validation := NewValidationService()
-	design := NewDesignService(validation)
-	store := NewStoreService()
-
 	return &BotService{
-		validation: validation,
-		design:     design,
-		store:      store,
+		validation: NewValidationService(),
+		store:      NewStoreService(),
 	}
 }
 
-// CreateBot cria um novo bot com configuração básica
-func (bs *BotService) CreateBot(ctx context.Context, req CreateBotRequest) (*BotInfo, error) {
-	// Valores padrão
-	if len(req.Channels) == 0 {
-		req.Channels = []string{"whatsapp"}
-	}
-	if req.AdapterName == "" {
-		req.AdapterName = "whatsapp"
+// CreateBot cria um novo bot
+func (sbs *BotService) CreateBot(ctx context.Context, botID, name, adapterName string) error {
+	if adapterName == "" {
+		adapterName = "whatsapp"
 	}
 
-	// Criar design básico
 	design := io.DesignDoc{
 		Schema: "flowkit/1.0",
 		Bot: io.Bot{
-			ID:       req.ID,
-			Channels: req.Channels,
+			ID:       botID,
+			Channels: []string{"whatsapp"},
 		},
 		Version: io.Version{
 			ID:     "v1.0.0",
@@ -149,563 +103,502 @@ func (bs *BotService) CreateBot(ctx context.Context, req CreateBotRequest) (*Bot
 		Props: make(map[string]any),
 	}
 
-	// Validar design
-	result, err := bs.validation.ValidateDesign(ctx, design, req.AdapterName)
-	if err != nil {
-		return nil, fmt.Errorf("erro na validação: %w", err)
-	}
-
-	if !result.Valid {
-		return nil, fmt.Errorf("design básico inválido: %d issues", len(result.Issues))
-	}
-
-	// Salvar no store
-	versionInfo, err := bs.store.Save(ctx, req.ID, design)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao salvar: %w", err)
-	}
-
-	// Retornar informações do bot
-	return &BotInfo{
-		ID:          req.ID,
-		Name:        req.Name,
-		Description: req.Description,
-		Channels:    req.Channels,
-		Version:     versionInfo.ID,
-		Status:      "development",
-		NodesCount:  1,
-		EdgesCount:  0,
-		Valid:       true,
-		CreatedAt:   versionInfo.CreatedAt,
-		UpdatedAt:   versionInfo.UpdatedAt,
-		Checksum:    versionInfo.Checksum,
-	}, nil
-}
-
-// GetBot obtém informações completas de um bot
-func (bs *BotService) GetBot(ctx context.Context, botID string) (*BotInfo, error) {
-	// Verificar se existe
-	exists, err := bs.store.Exists(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao verificar existência: %w", err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("bot %s não encontrado", botID)
-	}
-
-	// Carregar design
-	design, err := bs.store.Load(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
-	}
-
-	// Obter versão
-	versionInfo, err := bs.store.GetVersion(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao obter versão: %w", err)
-	}
-
 	// Validar
-	result, err := bs.validation.ValidateDesign(ctx, design, "whatsapp")
-	if err != nil {
-		return nil, fmt.Errorf("erro na validação: %w", err)
-	}
-
-	// Converter issues
-	var issues []ValidationIssue
-	for _, issue := range result.Issues {
-		issues = append(issues, ValidationIssue{
-			Code:     issue.Code,
-			Severity: string(issue.Severity),
-			Message:  issue.Msg,
-			Path:     issue.Path,
-		})
-	}
-
-	return &BotInfo{
-		ID:         design.Bot.ID,
-		Channels:   design.Bot.Channels,
-		Version:    design.Version.ID,
-		Status:     design.Version.Status,
-		NodesCount: len(design.Graph.Nodes),
-		EdgesCount: len(design.Graph.Edges),
-		Valid:      result.Valid,
-		Issues:     issues,
-		CreatedAt:  versionInfo.CreatedAt,
-		UpdatedAt:  versionInfo.UpdatedAt,
-		Checksum:   versionInfo.Checksum,
-	}, nil
-}
-
-// ListBots lista todos os bots
-func (bs *BotService) ListBots(ctx context.Context) ([]*BotInfo, error) {
-	versions, err := bs.store.List(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao listar: %w", err)
-	}
-
-	var bots []*BotInfo
-	for _, version := range versions {
-		botInfo, err := bs.GetBot(ctx, version.BotID)
-		if err != nil {
-			// Log error but continue
-			continue
-		}
-		bots = append(bots, botInfo)
-	}
-
-	return bots, nil
-}
-
-// DeleteBot remove um bot
-func (bs *BotService) DeleteBot(ctx context.Context, botID string) error {
-	return bs.store.Delete(ctx, botID)
-}
-
-// AddMessageNode adiciona um nó de mensagem
-func (bs *BotService) AddMessageNode(ctx context.Context, botID, nodeID, message string, position *Position) (*NodeInfo, error) {
-	return bs.addNode(ctx, botID, NodeInfo{
-		ID:       nodeID,
-		Kind:     "message",
-		Title:    "Mensagem",
-		Props:    map[string]interface{}{"text": message},
-		Outputs:  []string{"complete"},
-		Position: position,
-	})
-}
-
-// AddConfirmNode adiciona um nó de confirmação
-func (bs *BotService) AddConfirmNode(ctx context.Context, botID, nodeID, question, yesLabel, noLabel string, position *Position) (*NodeInfo, error) {
-	return bs.addNode(ctx, botID, NodeInfo{
-		ID:    nodeID,
-		Kind:  "confirm",
-		Title: "Confirmação",
-		Props: map[string]interface{}{
-			"title": question,
-			"yes":   yesLabel,
-			"no":    noLabel,
-		},
-		Outputs:  []string{"confirmed", "cancelled", "timeout"},
-		Position: position,
-	})
-}
-
-// AddInputNode adiciona um nó de entrada de dados (usando text como input)
-func (bs *BotService) AddInputNode(ctx context.Context, botID, nodeID, prompt, placeholder string, position *Position) (*NodeInfo, error) {
-	return bs.addNode(ctx, botID, NodeInfo{
-		ID:    nodeID,
-		Kind:  "text",
-		Title: "Entrada de Texto",
-		Props: map[string]interface{}{
-			"body": prompt,
-			"text": prompt, // fallback
-		},
-		Outputs:  []string{"complete"},
-		Position: position,
-	})
-}
-
-// AddListPickerNode adiciona um nó de seleção de lista
-func (bs *BotService) AddListPickerNode(ctx context.Context, botID, nodeID, prompt string, options []string, position *Position) (*NodeInfo, error) {
-	// Converter opções em formato do listpicker
-	var sections []map[string]interface{}
-	var items []map[string]interface{}
-
-	for i, option := range options {
-		items = append(items, map[string]interface{}{
-			"id":    fmt.Sprintf("option_%d", i),
-			"title": option,
-		})
-	}
-
-	sections = append(sections, map[string]interface{}{
-		"title": "Opções",
-		"items": items,
-	})
-
-	return bs.addNode(ctx, botID, NodeInfo{
-		ID:    nodeID,
-		Kind:  "listpicker",
-		Title: "Seleção de Lista",
-		Props: map[string]interface{}{
-			"text":     prompt,
-			"sections": sections,
-		},
-		Outputs:  []string{"complete"},
-		Position: position,
-	})
-}
-
-// AddDelayNode adiciona um nó de delay
-func (bs *BotService) AddDelayNode(ctx context.Context, botID, nodeID string, seconds int, position *Position) (*NodeInfo, error) {
-	return bs.addNode(ctx, botID, NodeInfo{
-		ID:    nodeID,
-		Kind:  "delay",
-		Title: "Delay",
-		Props: map[string]interface{}{
-			"duration": seconds * 1000, // converter para millisegundos
-			"unit":     "milliseconds",
-			"reason":   "processing",
-		},
-		Outputs:  []string{"complete"},
-		Position: position,
-	})
-}
-
-// UpdateNode atualiza propriedades de um nó
-func (bs *BotService) UpdateNode(ctx context.Context, botID string, nodeInfo NodeInfo) (*NodeInfo, error) {
-	// Carregar design atual
-	design, err := bs.store.Load(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
-	}
-
-	// Encontrar e atualizar nó
-	found := false
-	for i, node := range design.Graph.Nodes {
-		if string(node.ID) == nodeInfo.ID {
-			// Atualizar nó
-			updatedNode := flow.Node{
-				ID:      flow.ID(nodeInfo.ID),
-				Kind:    nodeInfo.Kind,
-				Title:   nodeInfo.Title,
-				Props:   nodeInfo.Props,
-				Outputs: nodeInfo.Outputs,
-				Inputs:  nodeInfo.Inputs,
-			}
-
-			if nodeInfo.Position != nil {
-				updatedNode.X = &nodeInfo.Position.X
-				updatedNode.Y = &nodeInfo.Position.Y
-			}
-
-			design.Graph.Nodes[i] = updatedNode
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return nil, fmt.Errorf("nó %s não encontrado", nodeInfo.ID)
-	}
-
-	// Validar e salvar
-	result, err := bs.validation.ValidateDesign(ctx, design, "whatsapp")
-	if err != nil {
-		return nil, fmt.Errorf("erro na validação: %w", err)
-	}
-
-	if !result.Valid {
-		return nil, fmt.Errorf("design inválido após atualização: %d issues", len(result.Issues))
-	}
-
-	_, err = bs.store.Save(ctx, botID, design)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao salvar: %w", err)
-	}
-
-	return &nodeInfo, nil
-}
-
-// RemoveNode remove um nó
-func (bs *BotService) RemoveNode(ctx context.Context, botID, nodeID string) error {
-	// Carregar design atual
-	design, err := bs.store.Load(ctx, botID)
-	if err != nil {
-		return fmt.Errorf("erro ao carregar design: %w", err)
-	}
-
-	// Remover nó
-	nodeIndex := -1
-	for i, node := range design.Graph.Nodes {
-		if string(node.ID) == nodeID {
-			nodeIndex = i
-			break
-		}
-	}
-
-	if nodeIndex == -1 {
-		return fmt.Errorf("nó %s não encontrado", nodeID)
-	}
-
-	// Remove node
-	design.Graph.Nodes = append(design.Graph.Nodes[:nodeIndex], design.Graph.Nodes[nodeIndex+1:]...)
-
-	// Remove edges relacionadas
-	var filteredEdges []flow.Edge
-	for _, edge := range design.Graph.Edges {
-		if string(edge.From) != nodeID && string(edge.To) != nodeID {
-			filteredEdges = append(filteredEdges, edge)
-		}
-	}
-	design.Graph.Edges = filteredEdges
-
-	// Validar e salvar
-	result, err := bs.validation.ValidateDesign(ctx, design, "whatsapp")
+	result, err := sbs.validation.ValidateDesign(ctx, design, adapterName)
 	if err != nil {
 		return fmt.Errorf("erro na validação: %w", err)
 	}
 
 	if !result.Valid {
-		return fmt.Errorf("design inválido após remoção: %d issues", len(result.Issues))
+		return fmt.Errorf("design básico inválido: %d issues", len(result.Issues))
 	}
 
-	_, err = bs.store.Save(ctx, botID, design)
+	// Salvar
+	_, err = sbs.store.Save(ctx, botID, design)
+	return err
+}
+
+// AddMessageNode adiciona nó de mensagem
+func (sbs *BotService) AddMessageNode(ctx context.Context, botID, nodeID, message string) error {
+	design, err := sbs.store.Load(ctx, botID)
 	if err != nil {
-		return fmt.Errorf("erro ao salvar: %w", err)
+		return err
 	}
 
-	return nil
+	// Verificar se nó já existe
+	for _, node := range design.Graph.Nodes {
+		if string(node.ID) == nodeID {
+			return fmt.Errorf("nó %s já existe", nodeID)
+		}
+	}
+
+	// Adicionar nó
+	newNode := flow.Node{
+		ID:      flow.ID(nodeID),
+		Kind:    "message",
+		Title:   "Mensagem",
+		Props:   map[string]any{"text": message},
+		Outputs: []string{"complete"},
+		X:       &[]float64{200 + float64(len(design.Graph.Nodes)*150)}[0],
+		Y:       &[]float64{200}[0],
+	}
+
+	design.Graph.Nodes = append(design.Graph.Nodes, newNode)
+
+	// Validar e salvar
+	result, err := sbs.validation.ValidateDesign(ctx, design, "whatsapp")
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid {
+		return fmt.Errorf("design inválido: %d issues", len(result.Issues))
+	}
+
+	_, err = sbs.store.Save(ctx, botID, design)
+	return err
+}
+
+// AddButtonsNode adiciona nó com botões (máx 3 botões WhatsApp)
+func (sbs *BotService) AddButtonsNode(ctx context.Context, botID, nodeID, text string, buttons []map[string]string, header, footer string) error {
+	design, err := sbs.store.Load(ctx, botID)
+	if err != nil {
+		return err
+	}
+
+	// Verificar se nó já existe
+	for _, node := range design.Graph.Nodes {
+		if string(node.ID) == nodeID {
+			return fmt.Errorf("nó %s já existe", nodeID)
+		}
+	}
+
+	// Preparar props do componente buttons
+	props := map[string]any{
+		"text":    text,
+		"buttons": buttons,
+	}
+
+	// Adicionar header e footer se fornecidos (WhatsApp)
+	if header != "" {
+		props["header"] = header
+	}
+	if footer != "" {
+		props["footer"] = footer
+	}
+
+	// Preparar outputs baseado nos botões
+	outputs := []string{"selected"} // Spec v2.2: output único
+
+	// Adicionar nó
+	newNode := flow.Node{
+		ID:      flow.ID(nodeID),
+		Kind:    "buttons",
+		Title:   "Botões",
+		Props:   props,
+		Outputs: outputs,
+		X:       &[]float64{200 + float64(len(design.Graph.Nodes)*150)}[0],
+		Y:       &[]float64{200}[0],
+	}
+
+	design.Graph.Nodes = append(design.Graph.Nodes, newNode)
+
+	// Validar e salvar (validações WhatsApp serão aplicadas)
+	result, err := sbs.validation.ValidateDesign(ctx, design, "whatsapp")
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid {
+		fmt.Printf("Issues encontrados:\n")
+		for i, issue := range result.Issues {
+			fmt.Printf("%d. [%s] %s: %s (Path: %s)\n",
+				i+1, issue.Severity, issue.Code, issue.Msg, issue.Path)
+		}
+		return fmt.Errorf("design inválido: %d issues", len(result.Issues))
+	}
+
+	_, err = sbs.store.Save(ctx, botID, design)
+	return err
+}
+
+// AddListPickerNode adiciona nó com lista de opções (máx 10 seções WhatsApp)
+func (sbs *BotService) AddListPickerNode(ctx context.Context, botID, nodeID, text, buttonText string, sections []map[string]any, header, footer string) error {
+	design, err := sbs.store.Load(ctx, botID)
+	if err != nil {
+		return err
+	}
+
+	// Verificar se nó já existe
+	for _, node := range design.Graph.Nodes {
+		if string(node.ID) == nodeID {
+			return fmt.Errorf("nó %s já existe", nodeID)
+		}
+	}
+
+	// Preparar props do componente listpicker
+	props := map[string]any{
+		"text":        text,
+		"button_text": buttonText,
+		"sections":    sections,
+	}
+
+	// Adicionar header e footer se fornecidos (WhatsApp)
+	if header != "" {
+		props["header"] = header
+	}
+	if footer != "" {
+		props["footer"] = footer
+	}
+
+	// Preparar outputs
+	outputs := []string{"selected"} // Spec v2.2: output único
+
+	// Adicionar nó
+	newNode := flow.Node{
+		ID:      flow.ID(nodeID),
+		Kind:    "listpicker",
+		Title:   "Lista de Seleção",
+		Props:   props,
+		Outputs: outputs,
+		X:       &[]float64{200 + float64(len(design.Graph.Nodes)*150)}[0],
+		Y:       &[]float64{200}[0],
+	}
+
+	design.Graph.Nodes = append(design.Graph.Nodes, newNode)
+
+	// Validar e salvar (validações WhatsApp serão aplicadas)
+	result, err := sbs.validation.ValidateDesign(ctx, design, "whatsapp")
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid {
+		fmt.Printf("Issues encontrados:\n")
+		for i, issue := range result.Issues {
+			fmt.Printf("%d. [%s] %s: %s (Path: %s)\n",
+				i+1, issue.Severity, issue.Code, issue.Msg, issue.Path)
+		}
+		return fmt.Errorf("design inválido: %d issues", len(result.Issues))
+	}
+
+	_, err = sbs.store.Save(ctx, botID, design)
+	return err
+}
+
+// AddMediaNode adiciona nó de mídia (image, video, audio, document)
+func (sbs *BotService) AddMediaNode(ctx context.Context, botID, nodeID, mediaType, url, caption, filename string, ptt bool) error {
+	design, err := sbs.store.Load(ctx, botID)
+	if err != nil {
+		return err
+	}
+
+	// Verificar se nó já existe
+	for _, node := range design.Graph.Nodes {
+		if string(node.ID) == nodeID {
+			return fmt.Errorf("nó %s já existe", nodeID)
+		}
+	}
+
+	// Preparar props do componente media
+	props := map[string]any{
+		"type": mediaType,
+		"url":  url,
+	}
+
+	if caption != "" {
+		props["caption"] = caption
+	}
+
+	if filename != "" {
+		props["filename"] = filename
+	}
+
+	// Push-to-talk para áudio (WhatsApp)
+	if mediaType == "audio" {
+		props["ptt"] = ptt
+	}
+
+	// Adicionar nó
+	newNode := flow.Node{
+		ID:      flow.ID(nodeID),
+		Kind:    "media",
+		Title:   fmt.Sprintf("Mídia (%s)", mediaType),
+		Props:   props,
+		Outputs: []string{"sent"}, // Media usa "sent" como output
+		X:       &[]float64{200 + float64(len(design.Graph.Nodes)*150)}[0],
+		Y:       &[]float64{200}[0],
+	}
+
+	design.Graph.Nodes = append(design.Graph.Nodes, newNode)
+
+	// Validar e salvar (validações WhatsApp serão aplicadas)
+	result, err := sbs.validation.ValidateDesign(ctx, design, "whatsapp")
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid {
+		fmt.Printf("Issues encontrados:\n")
+		for i, issue := range result.Issues {
+			fmt.Printf("%d. [%s] %s: %s (Path: %s)\n",
+				i+1, issue.Severity, issue.Code, issue.Msg, issue.Path)
+		}
+		return fmt.Errorf("design inválido: %d issues", len(result.Issues))
+	}
+
+	_, err = sbs.store.Save(ctx, botID, design)
+	return err
+}
+
+// AddConfirmNode adiciona nó de confirmação
+func (sbs *BotService) AddConfirmNode(ctx context.Context, botID, nodeID, question, yesLabel, noLabel string) error {
+	design, err := sbs.store.Load(ctx, botID)
+	if err != nil {
+		return err
+	}
+
+	// Verificar se nó já existe
+	for _, node := range design.Graph.Nodes {
+		if string(node.ID) == nodeID {
+			return fmt.Errorf("nó %s já existe", nodeID)
+		}
+	}
+
+	// Adicionar nó de confirmação
+	newNode := flow.Node{
+		ID:    flow.ID(nodeID),
+		Kind:  "confirm",
+		Title: "Confirmação",
+		Props: map[string]any{
+			"title": question,
+			"yes":   yesLabel,
+			"no":    noLabel,
+		},
+		Outputs: []string{"confirmed", "cancelled", "timeout"},
+		X:       &[]float64{200 + float64(len(design.Graph.Nodes)*150)}[0],
+		Y:       &[]float64{200}[0],
+	}
+
+	design.Graph.Nodes = append(design.Graph.Nodes, newNode)
+
+	// Validar e salvar
+	result, err := sbs.validation.ValidateDesign(ctx, design, "whatsapp")
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid {
+		fmt.Printf("Issues encontrados:\n")
+		for i, issue := range result.Issues {
+			fmt.Printf("%d. [%s] %s: %s (Path: %s)\n",
+				i+1, issue.Severity, issue.Code, issue.Msg, issue.Path)
+		}
+		return fmt.Errorf("design inválido: %d issues", len(result.Issues))
+	}
+
+	_, err = sbs.store.Save(ctx, botID, design)
+	return err
 }
 
 // ConnectNodes conecta dois nós
-func (bs *BotService) ConnectNodes(ctx context.Context, botID string, edge EdgeInfo) (*EdgeInfo, error) {
-	// Carregar design atual
-	design, err := bs.store.Load(ctx, botID)
+func (sbs *BotService) ConnectNodes(ctx context.Context, botID, fromNodeID, toNodeID, label string) error {
+	design, err := sbs.store.Load(ctx, botID)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
+		return err
 	}
 
 	// Verificar se nós existem
-	if !bs.nodeExists(design, edge.From) {
-		return nil, fmt.Errorf("nó origem %s não encontrado", edge.From)
-	}
-	if !bs.nodeExists(design, edge.To) {
-		return nil, fmt.Errorf("nó destino %s não encontrado", edge.To)
+	fromExists := false
+	toExists := false
+	for _, node := range design.Graph.Nodes {
+		if string(node.ID) == fromNodeID {
+			fromExists = true
+		}
+		if string(node.ID) == toNodeID {
+			toExists = true
+		}
 	}
 
-	// Criar edge
+	if !fromExists {
+		return fmt.Errorf("nó origem %s não encontrado", fromNodeID)
+	}
+	if !toExists {
+		return fmt.Errorf("nó destino %s não encontrado", toNodeID)
+	}
+
+	// Adicionar edge
 	newEdge := flow.Edge{
-		From:     flow.ID(edge.From),
-		To:       flow.ID(edge.To),
-		Label:    edge.Label,
-		Priority: edge.Priority,
+		From:  flow.ID(fromNodeID),
+		To:    flow.ID(toNodeID),
+		Label: label,
 	}
 
 	design.Graph.Edges = append(design.Graph.Edges, newEdge)
 
 	// Validar e salvar
-	result, err := bs.validation.ValidateDesign(ctx, design, "whatsapp")
+	result, err := sbs.validation.ValidateDesign(ctx, design, "whatsapp")
 	if err != nil {
-		return nil, fmt.Errorf("erro na validação: %w", err)
+		return err
 	}
 
 	if !result.Valid {
-		return nil, fmt.Errorf("design inválido após conexão: %d issues", len(result.Issues))
+		return fmt.Errorf("design inválido: %d issues", len(result.Issues))
 	}
 
-	_, err = bs.store.Save(ctx, botID, design)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao salvar: %w", err)
-	}
-
-	return &edge, nil
+	_, err = sbs.store.Save(ctx, botID, design)
+	return err
 }
 
-// DisconnectNodes desconecta dois nós
-func (bs *BotService) DisconnectNodes(ctx context.Context, botID, fromNodeID, toNodeID string) error {
-	// Carregar design atual
-	design, err := bs.store.Load(ctx, botID)
+// ValidateBot valida um bot
+func (sbs *BotService) ValidateBot(ctx context.Context, botID, adapterName string) (*ValidationResult, error) {
+	design, err := sbs.store.Load(ctx, botID)
 	if err != nil {
-		return fmt.Errorf("erro ao carregar design: %w", err)
+		return nil, err
 	}
 
-	// Encontrar e remover edge
-	edgeIndex := -1
-	for i, edge := range design.Graph.Edges {
-		if string(edge.From) == fromNodeID && string(edge.To) == toNodeID {
-			edgeIndex = i
-			break
+	return sbs.validation.ValidateDesign(ctx, design, adapterName)
+}
+
+// GetBotInfo obtém informações básicas
+func (sbs *BotService) GetBotInfo(ctx context.Context, botID string) (map[string]interface{}, error) {
+	design, err := sbs.store.Load(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := sbs.validation.ValidateDesign(ctx, design, "whatsapp")
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"id":       design.Bot.ID,
+		"nodes":    len(design.Graph.Nodes),
+		"edges":    len(design.Graph.Edges),
+		"valid":    result.Valid,
+		"issues":   len(result.Issues),
+		"channels": design.Bot.Channels,
+		"version":  design.Version.ID,
+	}, nil
+}
+
+// ListBots lista todos os bots
+func (sbs *BotService) ListBots(ctx context.Context) error {
+	versions, err := sbs.store.List(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("📋 Total de bots: %d\n", len(versions))
+	for _, version := range versions {
+		info, err := sbs.GetBotInfo(ctx, version.BotID)
+		if err != nil {
+			fmt.Printf("   ❌ %s (erro ao carregar)\n", version.BotID)
+			continue
 		}
-	}
 
-	if edgeIndex == -1 {
-		return fmt.Errorf("conexão %s -> %s não encontrada", fromNodeID, toNodeID)
-	}
+		status := "❌"
+		if info["valid"].(bool) {
+			status = "✅"
+		}
 
-	// Remove edge
-	design.Graph.Edges = append(design.Graph.Edges[:edgeIndex], design.Graph.Edges[edgeIndex+1:]...)
-
-	// Salvar
-	_, err = bs.store.Save(ctx, botID, design)
-	if err != nil {
-		return fmt.Errorf("erro ao salvar: %w", err)
+		fmt.Printf("   %s %s - %d nós, %d edges\n",
+			status, version.BotID, info["nodes"], info["edges"])
 	}
 
 	return nil
 }
 
-// GetNodes obtém todos os nós de um bot
-func (bs *BotService) GetNodes(ctx context.Context, botID string) ([]*NodeInfo, error) {
-	design, err := bs.store.Load(ctx, botID)
+// DemoSimpleBot demonstração completa
+func (sbs *BotService) DemoSimpleBot(ctx context.Context) error {
+	fmt.Println("🚀 DEMONSTRAÇÃO SIMPLEBOT SERVICE")
+	fmt.Println("=================================")
+
+	botID := "simple-demo-bot"
+
+	// 1. Criar bot
+	fmt.Println("📋 1. Criando bot...")
+	err := sbs.CreateBot(ctx, botID, "Bot Demo Simples", "whatsapp")
 	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
+		return fmt.Errorf("erro ao criar bot: %w", err)
+	}
+	fmt.Printf("✅ Bot criado: %s\n", botID)
+
+	// 2. Adicionar nós
+	fmt.Println("📋 2. Adicionando nós...")
+
+	err = sbs.AddMessageNode(ctx, botID, "menu", "Escolha uma opção:\n1️⃣ Suporte\n2️⃣ Vendas")
+	if err != nil {
+		return fmt.Errorf("erro ao adicionar menu: %w", err)
+	}
+	fmt.Println("✅ Menu adicionado")
+
+	err = sbs.AddConfirmNode(ctx, botID, "confirm_support", "Deseja falar com suporte?", "Sim", "Não")
+	if err != nil {
+		return fmt.Errorf("erro ao adicionar confirmação: %w", err)
+	}
+	fmt.Println("✅ Confirmação adicionada")
+
+	err = sbs.AddMessageNode(ctx, botID, "thank_you", "Obrigado pelo contato! 😊")
+	if err != nil {
+		return fmt.Errorf("erro ao adicionar agradecimento: %w", err)
+	}
+	fmt.Println("✅ Agradecimento adicionado")
+
+	// 3. Conectar nós
+	fmt.Println("📋 3. Conectando nós...")
+
+	err = sbs.ConnectNodes(ctx, botID, "start", "menu", "início")
+	if err != nil {
+		return fmt.Errorf("erro ao conectar start->menu: %w", err)
+	}
+	fmt.Println("✅ start -> menu")
+
+	err = sbs.ConnectNodes(ctx, botID, "menu", "confirm_support", "1")
+	if err != nil {
+		return fmt.Errorf("erro ao conectar menu->confirm: %w", err)
+	}
+	fmt.Println("✅ menu -> confirm_support")
+
+	err = sbs.ConnectNodes(ctx, botID, "confirm_support", "thank_you", "confirmed")
+	if err != nil {
+		return fmt.Errorf("erro ao conectar confirm->thank_you: %w", err)
+	}
+	fmt.Println("✅ confirm_support -> thank_you")
+
+	// 4. Validar
+	fmt.Println("📋 4. Validando bot...")
+	result, err := sbs.ValidateBot(ctx, botID, "whatsapp")
+	if err != nil {
+		return fmt.Errorf("erro na validação: %w", err)
 	}
 
-	var nodes []*NodeInfo
-	for _, node := range design.Graph.Nodes {
-		nodeInfo := &NodeInfo{
-			ID:      string(node.ID),
-			Kind:    node.Kind,
-			Title:   node.Title,
-			Props:   node.Props,
-			Inputs:  node.Inputs,
-			Outputs: node.Outputs,
+	if result.Valid {
+		fmt.Printf("✅ Bot válido! (%v)\n", result.Duration)
+		if result.Plan != nil {
+			fmt.Printf("📋 Plano de execução gerado (checksum: %s)\n", result.Plan.DesignChecksum)
 		}
-
-		if node.X != nil && node.Y != nil {
-			nodeInfo.Position = &Position{X: *node.X, Y: *node.Y}
-		}
-
-		nodes = append(nodes, nodeInfo)
-	}
-
-	return nodes, nil
-}
-
-// GetEdges obtém todas as conexões de um bot
-func (bs *BotService) GetEdges(ctx context.Context, botID string) ([]*EdgeInfo, error) {
-	design, err := bs.store.Load(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
-	}
-
-	var edges []*EdgeInfo
-	for _, edge := range design.Graph.Edges {
-		edges = append(edges, &EdgeInfo{
-			From:     string(edge.From),
-			To:       string(edge.To),
-			Label:    edge.Label,
-			Priority: edge.Priority,
-		})
-	}
-
-	return edges, nil
-}
-
-// ValidateBot valida um bot
-func (bs *BotService) ValidateBot(ctx context.Context, botID, adapterName string) (*ValidationResult, error) {
-	design, err := bs.store.Load(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
-	}
-
-	return bs.validation.ValidateDesign(ctx, design, adapterName)
-}
-
-// CloneBot cria uma cópia de um bot
-func (bs *BotService) CloneBot(ctx context.Context, sourceBotID, targetBotID string) (*BotInfo, error) {
-	_, err := bs.store.Clone(ctx, sourceBotID, targetBotID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao clonar: %w", err)
-	}
-
-	return bs.GetBot(ctx, targetBotID)
-}
-
-// GetBotDesign obtém o design completo de um bot (para exportação/importação)
-func (bs *BotService) GetBotDesign(ctx context.Context, botID string) (*io.DesignDoc, error) {
-	design, err := bs.store.Load(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
-	}
-	return &design, nil
-}
-
-// ImportBotDesign importa um design completo
-func (bs *BotService) ImportBotDesign(ctx context.Context, botID string, design io.DesignDoc, adapterName string) (*BotInfo, error) {
-	// Atualizar ID do bot no design
-	design.Bot.ID = botID
-
-	// Validar
-	result, err := bs.validation.ValidateDesign(ctx, design, adapterName)
-	if err != nil {
-		return nil, fmt.Errorf("erro na validação: %w", err)
-	}
-
-	if !result.Valid {
-		return nil, fmt.Errorf("design importado inválido: %d issues", len(result.Issues))
-	}
-
-	// Salvar
-	_, err = bs.store.Save(ctx, botID, design)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao salvar: %w", err)
-	}
-
-	return bs.GetBot(ctx, botID)
-}
-
-// Métodos auxiliares privados
-
-func (bs *BotService) addNode(ctx context.Context, botID string, nodeInfo NodeInfo) (*NodeInfo, error) {
-	// Carregar design atual
-	design, err := bs.store.Load(ctx, botID)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao carregar design: %w", err)
-	}
-
-	// Verificar se nó já existe
-	for _, node := range design.Graph.Nodes {
-		if string(node.ID) == nodeInfo.ID {
-			return nil, fmt.Errorf("nó %s já existe", nodeInfo.ID)
-		}
-	}
-
-	// Criar nó
-	newNode := flow.Node{
-		ID:      flow.ID(nodeInfo.ID),
-		Kind:    nodeInfo.Kind,
-		Title:   nodeInfo.Title,
-		Props:   nodeInfo.Props,
-		Outputs: nodeInfo.Outputs,
-		Inputs:  nodeInfo.Inputs,
-	}
-
-	// Definir posição
-	if nodeInfo.Position != nil {
-		newNode.X = &nodeInfo.Position.X
-		newNode.Y = &nodeInfo.Position.Y
 	} else {
-		// Posição padrão baseada no número de nós existentes
-		x := float64(200 + len(design.Graph.Nodes)*150)
-		y := float64(200)
-		newNode.X = &x
-		newNode.Y = &y
-	}
-
-	// Adicionar ao design
-	design.Graph.Nodes = append(design.Graph.Nodes, newNode)
-
-	// Validar
-	result, err := bs.validation.ValidateDesign(ctx, design, "whatsapp")
-	if err != nil {
-		return nil, fmt.Errorf("erro na validação: %w", err)
-	}
-
-	if !result.Valid {
-		return nil, fmt.Errorf("design inválido após adicionar nó: %d issues", len(result.Issues))
-	}
-
-	// Salvar
-	_, err = bs.store.Save(ctx, botID, design)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao salvar: %w", err)
-	}
-
-	// Retornar informações do nó criado
-	if nodeInfo.Position == nil && newNode.X != nil && newNode.Y != nil {
-		nodeInfo.Position = &Position{X: *newNode.X, Y: *newNode.Y}
-	}
-
-	return &nodeInfo, nil
-}
-
-func (bs *BotService) nodeExists(design io.DesignDoc, nodeID string) bool {
-	for _, node := range design.Graph.Nodes {
-		if string(node.ID) == nodeID {
-			return true
+		fmt.Printf("⚠️ Bot tem %d issues:\n", len(result.Issues))
+		for _, issue := range result.Issues {
+			fmt.Printf("   - [%s] %s\n", issue.Severity, issue.Msg)
 		}
 	}
-	return false
+
+	// 5. Informações finais
+	fmt.Println("📋 5. Informações finais...")
+	info, err := sbs.GetBotInfo(ctx, botID)
+	if err != nil {
+		return fmt.Errorf("erro ao obter info: %w", err)
+	}
+
+	fmt.Printf("📊 Estatísticas:\n")
+	fmt.Printf("   - ID: %s\n", info["id"])
+	fmt.Printf("   - Nós: %d\n", info["nodes"])
+	fmt.Printf("   - Conexões: %d\n", info["edges"])
+	fmt.Printf("   - Válido: %t\n", info["valid"])
+
+	fmt.Println("\n🎉 DEMONSTRAÇÃO CONCLUÍDA COM SUCESSO!")
+	return nil
 }

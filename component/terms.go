@@ -2,6 +2,7 @@ package component
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/AgendoCerto/lib-bot/liquid"
 	"github.com/AgendoCerto/lib-bot/persistence"
@@ -9,12 +10,13 @@ import (
 )
 
 // Terms representa o componente de aceite de termos
-// Por baixo dos panos funciona como texto, mas tem outputs específicos para aceito/não aceito
+// Usa BUTTONS (Aceitar/Rejeitar) + suporte a link no texto para visualizar termos completos
 type Terms struct {
-	text        string          // Texto dos termos a serem aceitos
-	acceptText  string          // Texto para aceitar (ex: "Aceito", "Sim", "OK")
-	rejectText  string          // Texto para rejeitar (ex: "Não aceito", "Não", "Cancelar")
-	placeholder string          // Placeholder para entrada do usuário
+	text        string          // Texto dos termos (pode incluir link usando markdown [texto](url))
+	linkURL     string          // URL opcional para termos completos
+	linkText    string          // Texto do link (ex: "Ver termos completos")
+	acceptLabel string          // Label do botão aceitar (ex: "Aceito")
+	rejectLabel string          // Label do botão rejeitar (ex: "Não aceito")
 	det         liquid.Detector // Detector para parsing de templates Liquid
 }
 
@@ -22,9 +24,9 @@ type Terms struct {
 func NewTerms(det liquid.Detector) *Terms {
 	return &Terms{
 		det:         det,
-		acceptText:  "Aceito",
-		rejectText:  "Não aceito",
-		placeholder: "Digite 'Aceito' para concordar ou 'Não aceito' para recusar",
+		acceptLabel: "Aceito",
+		rejectLabel: "Não aceito",
+		linkText:    "Ver termos completos",
 	}
 }
 
@@ -37,56 +39,91 @@ func (t *Terms) WithText(s string) *Terms {
 	return &cp
 }
 
-// WithAcceptText define o texto de aceitação
-func (t *Terms) WithAcceptText(s string) *Terms {
+// WithLink define link para termos completos
+func (t *Terms) WithLink(url, text string) *Terms {
 	cp := *t
-	cp.acceptText = s
+	cp.linkURL = url
+	if text != "" {
+		cp.linkText = text
+	}
 	return &cp
 }
 
-// WithRejectText define o texto de rejeição
-func (t *Terms) WithRejectText(s string) *Terms {
+// WithLabels define os labels dos botões
+func (t *Terms) WithLabels(accept, reject string) *Terms {
 	cp := *t
-	cp.rejectText = s
+	if accept != "" {
+		cp.acceptLabel = accept
+	}
+	if reject != "" {
+		cp.rejectLabel = reject
+	}
 	return &cp
 }
 
-// WithPlaceholder define o placeholder
-func (t *Terms) WithPlaceholder(s string) *Terms {
-	cp := *t
-	cp.placeholder = s
-	return &cp
-}
-
-// Spec gera o ComponentSpec para terms (funciona como texto por baixo dos panos)
+// Spec gera o ComponentSpec para terms (usa BUTTONS para aceitar/rejeitar)
 func (t *Terms) Spec(ctx context.Context, _ runtime.Context) (ComponentSpec, error) {
 	// Processa o texto principal com templates Liquid
 	var textVal *TextValue
 	if t.text != "" {
-		meta, err := t.det.Parse(ctx, t.text)
+		// Se tem link, adiciona ao final do texto
+		fullText := t.text
+		if t.linkURL != "" {
+			fullText = fmt.Sprintf("%s\n\n[%s](%s)", t.text, t.linkText, t.linkURL)
+		}
+
+		meta, err := t.det.Parse(ctx, fullText)
 		if err != nil {
 			return ComponentSpec{}, err
 		}
 		textVal = &TextValue{
-			Raw:      t.text,
+			Raw:      fullText,
 			Template: meta.IsTemplate,
 			Liquid:   meta,
 		}
 	}
 
+	// Parse labels dos botões
+	acceptMeta, err := t.det.Parse(ctx, t.acceptLabel)
+	if err != nil {
+		return ComponentSpec{}, err
+	}
+
+	rejectMeta, err := t.det.Parse(ctx, t.rejectLabel)
+	if err != nil {
+		return ComponentSpec{}, err
+	}
+
+	// Cria botões de aceitar/rejeitar
+	buttons := []Button{
+		{
+			Label:   TextValue{Raw: t.acceptLabel, Template: acceptMeta.IsTemplate, Liquid: acceptMeta},
+			Payload: "accept",
+			Kind:    "reply",
+		},
+		{
+			Label:   TextValue{Raw: t.rejectLabel, Template: rejectMeta.IsTemplate, Liquid: rejectMeta},
+			Payload: "reject",
+			Kind:    "reply",
+		},
+	}
+
 	// Metadados específicos do componente terms
 	metaData := map[string]any{
 		"component_type": "terms_acceptance",
-		"accept_text":    t.acceptText,
-		"reject_text":    t.rejectText,
-		"placeholder":    t.placeholder,
-		"input_type":     "text", // Por baixo dos panos é texto
+		"output_mode":    "single", // Output único: selected
+		"has_link":       t.linkURL != "",
+	}
+
+	if t.linkURL != "" {
+		metaData["link_url"] = t.linkURL
 	}
 
 	return ComponentSpec{
-		Kind: "terms",
-		Text: textVal,
-		Meta: metaData,
+		Kind:    "terms",
+		Text:    textVal,
+		Buttons: buttons,
+		Meta:    metaData,
 	}, nil
 }
 
@@ -105,19 +142,26 @@ func (f *TermsFactory) New(_ string, props map[string]any) (Component, error) {
 		t = t.WithText(text)
 	}
 
-	// Configurar texto de aceitação
-	if acceptText, ok := props["accept_text"].(string); ok && acceptText != "" {
-		t = t.WithAcceptText(acceptText)
+	// Configurar link (URL + texto do link)
+	if linkURL, ok := props["link_url"].(string); ok && linkURL != "" {
+		linkText, _ := props["link_text"].(string)
+		t = t.WithLink(linkURL, linkText)
 	}
 
-	// Configurar texto de rejeição
-	if rejectText, ok := props["reject_text"].(string); ok && rejectText != "" {
-		t = t.WithRejectText(rejectText)
+	// Configurar labels dos botões
+	acceptLabel, _ := props["accept_label"].(string)
+	rejectLabel, _ := props["reject_label"].(string)
+	if acceptLabel != "" || rejectLabel != "" {
+		t = t.WithLabels(acceptLabel, rejectLabel)
 	}
 
-	// Configurar placeholder
-	if placeholder, ok := props["placeholder"].(string); ok && placeholder != "" {
-		t = t.WithPlaceholder(placeholder)
+	// Backward compatibility: accept_text/reject_text
+	if acceptText, ok := props["accept_text"].(string); ok && acceptText != "" && acceptLabel == "" {
+		t = t.WithLabels(acceptText, "")
+	}
+	if rejectText, ok := props["reject_text"].(string); ok && rejectText != "" && rejectLabel == "" {
+		currentAccept := t.acceptLabel
+		t = t.WithLabels(currentAccept, rejectText)
 	}
 
 	// Parse behaviors

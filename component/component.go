@@ -3,11 +3,14 @@ package component
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/AgendoCerto/lib-bot/hsm"
 	"github.com/AgendoCerto/lib-bot/liquid"
 	"github.com/AgendoCerto/lib-bot/persistence"
 	"github.com/AgendoCerto/lib-bot/runtime"
+	"github.com/AgendoCerto/lib-bot/validator"
 )
 
 // TextValue armazena texto com suporte a templates Liquid (sem renderização)
@@ -34,12 +37,7 @@ type Button struct {
 	Kind    string    `json:"kind"`    // Tipo: reply|url|call
 }
 
-// AwaitBehavior configura aguardar resposta do usuário
-type AwaitBehavior struct {
-	Enabled        bool       `json:"enabled"`                   // Ativar modo de espera
-	Timeout        int        `json:"timeout"`                   // Timeout em segundos (0 = aguardar indefinidamente)
-	TimeoutMessage *TextValue `json:"timeout_message,omitempty"` // Mensagem quando timeout ocorrer
-}
+// REMOVIDO: AwaitBehavior - substituído por validator.enabled=true + validator.timeout_seconds
 
 // TimeoutBehavior configura comportamento de timeout
 type TimeoutBehavior struct {
@@ -73,12 +71,46 @@ type EscalationConfig struct {
 	TriggerAt int        `json:"trigger_at,omitempty"` // Número de tentativas para escalar
 }
 
+// ExperimentBehavior configura A/B testing
+type ExperimentBehavior struct {
+	Enabled   bool                `json:"enabled"`
+	StickyKey string              `json:"sticky_key"` // Chave para manter consistência (ex: "profile.user_id")
+	Variants  []ExperimentVariant `json:"variants"`
+}
+
+// ExperimentVariant representa uma variante do experimento
+type ExperimentVariant struct {
+	ID         string `json:"id"`          // ID da variante (ex: "A", "B")
+	Weight     int    `json:"weight"`      // Peso para distribuição (0-100)
+	TargetNode string `json:"target_node"` // Nó de destino para esta variante
+}
+
+// PersistenceWriteConfig configura escrita de dados em múltiplos escopos
+type PersistenceWriteConfig struct {
+	Enabled bool               `json:"enabled"`
+	Writes  []PersistenceWrite `json:"writes"` // Lista de escritas a realizar
+}
+
+// PersistenceWrite representa uma operação de escrita
+type PersistenceWrite struct {
+	Scope string `json:"scope"` // profile|context|session
+	Key   string `json:"key"`   // Nome da variável
+	From  string `json:"from"`  // Campo de origem (ex: "context.user_input")
+}
+
 // ComponentBehavior agrupa todos os behaviors de um componente
+// IMPORTANTE: behavior.validator substitui behavior.await
+// Quando validator.enabled=true, automaticamente aguarda resposta do usuário
 type ComponentBehavior struct {
-	Await      *AwaitBehavior      `json:"await,omitempty"`      // Configuração de aguardar entrada
-	Timeout    *TimeoutBehavior    `json:"timeout,omitempty"`    // Configuração de timeout
-	Validation *ValidationBehavior `json:"validation,omitempty"` // Configuração de validação
-	Delay      *DelayBehavior      `json:"delay,omitempty"`      // Configuração de delays
+	// REMOVIDO: Await - funcionalidade absorvida pelo Validator
+	// Use validator.enabled=true para aguardar resposta
+
+	Timeout     *TimeoutBehavior        `json:"timeout,omitempty"`     // Configuração de timeout (complementa validator)
+	Validation  *ValidationBehavior     `json:"validation,omitempty"`  // Configuração de validação (LEGADO - usar Validator)
+	Validator   *validator.Config       `json:"validator,omitempty"`   // Validator 2.0 (substitui Await + Validation)
+	Delay       *DelayBehavior          `json:"delay,omitempty"`       // Configuração de delays
+	Experiment  *ExperimentBehavior     `json:"experiment,omitempty"`  // A/B testing
+	Persistence *PersistenceWriteConfig `json:"persistence,omitempty"` // Persistência de dados
 }
 
 // ComponentSpec é o modelo canônico de um componente (sem renderização final)
@@ -132,15 +164,8 @@ func ParseBehavior(props map[string]any, det liquid.Detector) (*ComponentBehavio
 	behavior := &ComponentBehavior{}
 	hasAnyBehavior := false
 
-	// Parse await behavior
-	if awaitRaw, ok := props["await"].(map[string]any); ok {
-		await, err := parseAwaitBehavior(awaitRaw, det)
-		if err != nil {
-			return nil, err
-		}
-		behavior.Await = await
-		hasAnyBehavior = true
-	}
+	// REMOVIDO: Parse await behavior - funcionalidade absorvida pelo validator
+	// Se props["await"] existir, ignorar silenciosamente (compatibilidade)
 
 	// Parse timeout behavior
 	if timeoutRaw, ok := props["timeout"].(map[string]any); ok {
@@ -152,7 +177,7 @@ func ParseBehavior(props map[string]any, det liquid.Detector) (*ComponentBehavio
 		hasAnyBehavior = true
 	}
 
-	// Parse validation behavior
+	// Parse validation behavior (legado)
 	if validationRaw, ok := props["validation"].(map[string]any); ok {
 		validation, err := parseValidationBehavior(validationRaw, det)
 		if err != nil {
@@ -162,10 +187,40 @@ func ParseBehavior(props map[string]any, det liquid.Detector) (*ComponentBehavio
 		hasAnyBehavior = true
 	}
 
+	// Parse validator 2.0 (novo - spec v2.2)
+	if validatorRaw, ok := props["validator"].(map[string]any); ok {
+		validatorConfig, err := parseValidator(validatorRaw)
+		if err != nil {
+			return nil, err
+		}
+		behavior.Validator = validatorConfig
+		hasAnyBehavior = true
+	}
+
 	// Parse delay behavior
 	if delayRaw, ok := props["delay"].(map[string]any); ok {
 		delay := parseDelayBehavior(delayRaw)
 		behavior.Delay = delay
+		hasAnyBehavior = true
+	}
+
+	// Parse experiment behavior
+	if experimentRaw, ok := props["experiment"].(map[string]any); ok {
+		experiment, err := parseExperimentBehavior(experimentRaw)
+		if err != nil {
+			return nil, err
+		}
+		behavior.Experiment = experiment
+		hasAnyBehavior = true
+	}
+
+	// Parse persistence behavior (novo formato com writes)
+	if persistenceRaw, ok := props["persistence"].(map[string]any); ok {
+		persistence, err := parsePersistenceWriteConfig(persistenceRaw)
+		if err != nil {
+			return nil, err
+		}
+		behavior.Persistence = persistence
 		hasAnyBehavior = true
 	}
 
@@ -191,33 +246,7 @@ func ParseBehavior(props map[string]any, det liquid.Detector) (*ComponentBehavio
 	return behavior, nil
 }
 
-func parseAwaitBehavior(raw map[string]any, det liquid.Detector) (*AwaitBehavior, error) {
-	await := &AwaitBehavior{}
-
-	if enabled, ok := raw["enabled"].(bool); ok {
-		await.Enabled = enabled
-	}
-
-	if timeout, ok := raw["timeout"].(float64); ok {
-		await.Timeout = int(timeout)
-	} else if timeout, ok := raw["timeout"].(int); ok {
-		await.Timeout = timeout
-	}
-
-	if timeoutMessageText, ok := raw["timeout_message"].(string); ok {
-		meta, err := det.Parse(context.Background(), timeoutMessageText)
-		if err != nil {
-			return nil, err
-		}
-		await.TimeoutMessage = &TextValue{
-			Raw:      timeoutMessageText,
-			Template: meta.IsTemplate,
-			Liquid:   meta,
-		}
-	}
-
-	return await, nil
-}
+// REMOVIDO: parseAwaitBehavior - substituído por validator com timeout_seconds
 
 func parseTimeoutBehavior(raw map[string]any, det liquid.Detector) (*TimeoutBehavior, error) {
 	timeout := &TimeoutBehavior{}
@@ -473,6 +502,90 @@ func ParsePersistence(props map[string]any) (*persistence.Config, error) {
 
 			config.Sanitization = sanitization
 		}
+	}
+
+	return config, nil
+}
+
+// parseValidator converte map para validator.Config
+func parseValidator(raw map[string]any) (*validator.Config, error) {
+	// Usar JSON para conversão
+	jsonData, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal validator config: %w", err)
+	}
+
+	var config validator.Config
+	if err := json.Unmarshal(jsonData, &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal validator config: %w", err)
+	}
+
+	return &config, nil
+}
+
+// parseExperimentBehavior converte map para ExperimentBehavior
+func parseExperimentBehavior(raw map[string]any) (*ExperimentBehavior, error) {
+	experiment := &ExperimentBehavior{}
+
+	if enabled, ok := raw["enabled"].(bool); ok {
+		experiment.Enabled = enabled
+	}
+
+	if stickyKey, ok := raw["sticky_key"].(string); ok {
+		experiment.StickyKey = stickyKey
+	}
+
+	if variantsRaw, ok := raw["variants"].([]any); ok {
+		variants := make([]ExperimentVariant, 0, len(variantsRaw))
+		for _, vRaw := range variantsRaw {
+			if vMap, ok := vRaw.(map[string]any); ok {
+				variant := ExperimentVariant{}
+				if id, ok := vMap["id"].(string); ok {
+					variant.ID = id
+				}
+				if weight, ok := vMap["weight"].(float64); ok {
+					variant.Weight = int(weight)
+				} else if weight, ok := vMap["weight"].(int); ok {
+					variant.Weight = weight
+				}
+				if targetNode, ok := vMap["target_node"].(string); ok {
+					variant.TargetNode = targetNode
+				}
+				variants = append(variants, variant)
+			}
+		}
+		experiment.Variants = variants
+	}
+
+	return experiment, nil
+}
+
+// parsePersistenceWriteConfig converte map para PersistenceWriteConfig
+func parsePersistenceWriteConfig(raw map[string]any) (*PersistenceWriteConfig, error) {
+	config := &PersistenceWriteConfig{}
+
+	if enabled, ok := raw["enabled"].(bool); ok {
+		config.Enabled = enabled
+	}
+
+	if writesRaw, ok := raw["writes"].([]any); ok {
+		writes := make([]PersistenceWrite, 0, len(writesRaw))
+		for _, wRaw := range writesRaw {
+			if wMap, ok := wRaw.(map[string]any); ok {
+				write := PersistenceWrite{}
+				if scope, ok := wMap["scope"].(string); ok {
+					write.Scope = scope
+				}
+				if key, ok := wMap["key"].(string); ok {
+					write.Key = key
+				}
+				if from, ok := wMap["from"].(string); ok {
+					write.From = from
+				}
+				writes = append(writes, write)
+			}
+		}
+		config.Writes = writes
 	}
 
 	return config, nil
