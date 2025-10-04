@@ -41,8 +41,8 @@ func (DefaultCompiler) Compile(ctx context.Context, design io.DesignDoc, reg *co
 		return io.RuntimePlan{}, "", nil, errors.New("component registry is nil")
 	}
 
-	// Criar contexto de runtime baseado no profile do design
-	runtimeCtx := buildRuntimeContextFromProfile(design.Profile)
+	// Criar contexto de runtime baseado nas variáveis do design
+	runtimeCtx := buildRuntimeContextFromVariables(design.Variables)
 
 	// Percorre o grafo e monta ComponentSpecs
 	specs := make([]component.ComponentSpec, 0, len(design.Graph.Nodes))
@@ -122,11 +122,12 @@ func dumbSHA256Hex(b []byte) string {
 	return string(out)
 }
 
-// buildRuntimeContextFromProfile constrói um contexto de runtime a partir do profile do design
-func buildRuntimeContextFromProfile(profile io.Profile) runtime.Context {
+// buildRuntimeContextFromVariables constrói um contexto de runtime a partir das variáveis do design
+func buildRuntimeContextFromVariables(variables io.Variables) runtime.Context {
 	runtimeCtx := runtime.Context{
 		Context: make(map[string]any),
-		Profile: make(map[string]any),
+		State:   make(map[string]any),
+		Global:  make(map[string]any),
 	}
 
 	// Adicionar chaves de contexto padrão sempre disponíveis
@@ -136,56 +137,21 @@ func buildRuntimeContextFromProfile(profile io.Profile) runtime.Context {
 	runtimeCtx.Context["wa_phone"] = "" // backward compatibility
 	runtimeCtx.Context["wa_name"] = ""  // backward compatibility
 
-	// Processar variáveis do profile.variables.profile (valores atuais/defaults processados)
-	if profile.Variables.Profile != nil {
-		for varName, value := range profile.Variables.Profile {
-			// Verificar se é uma variável persistente ou temporária baseada na definição context
-			if profileVar, hasDefinition := profile.Variables.Context[varName]; hasDefinition {
-				if profileVar.Persist {
-					// Variáveis persistentes vão para Profile
-					runtimeCtx.Profile[varName] = value
-				} else {
-					// Variáveis temporárias vão para Context
-					runtimeCtx.Context[varName] = value
-				}
-			} else {
-				// Se não há definição, assume Context por padrão
-				runtimeCtx.Context[varName] = value
-			}
+	// Processar context variables (array de strings - keys temporárias)
+	for _, varName := range variables.Context {
+		if _, exists := runtimeCtx.Context[varName]; !exists {
+			runtimeCtx.Context[varName] = "" // Inicializar com string vazia
 		}
 	}
 
-	// Backup: processar diretamente do context se não há profile values
-	if len(profile.Variables.Profile) == 0 {
-		for varName, profileVar := range profile.Variables.Context {
-			// Determina o valor da variável
-			var value any
-			if profileVar.Default != "" {
-				// Usa o valor default se disponível
-				value = profileVar.Default
-			} else {
-				// Usa valor padrão baseado no tipo
-				switch profileVar.Type {
-				case "string":
-					value = ""
-				case "number", "int", "float":
-					value = 0
-				case "boolean", "bool":
-					value = false
-				default:
-					value = nil
-				}
-			}
+	// Processar state variables (array de strings - keys permanentes)
+	for _, varName := range variables.State {
+		runtimeCtx.State[varName] = "" // Inicializar com string vazia
+	}
 
-			// Adiciona a variável no escopo apropriado
-			if profileVar.Persist {
-				// Variáveis persistentes vão para Profile
-				runtimeCtx.Profile[varName] = value
-			} else {
-				// Variáveis temporárias vão para Context
-				runtimeCtx.Context[varName] = value
-			}
-		}
+	// Processar global variables (objeto chave-valor - valores reais)
+	for varName, value := range variables.Global {
+		runtimeCtx.Global[varName] = value // Usar o valor real
 	}
 
 	return runtimeCtx

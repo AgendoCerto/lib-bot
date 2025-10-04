@@ -31,32 +31,20 @@ func (JSONCodec) EncodePlan(p RuntimePlan) ([]byte, error) { return json.Marshal
 
 // DesignDoc representa um documento de design editável (formato de entrada)
 type DesignDoc struct {
-	Schema  string         `json:"schema"`  // Versão do schema (ex: "flowkit/1.0")
-	Bot     Bot            `json:"bot"`     // Informações do bot
-	Version Version        `json:"version"` // Versão do fluxo
-	Entries []flow.Entry   `json:"entries"` // Pontos de entrada do fluxo
-	Profile Profile        `json:"profile"` // Configurações de perfil e contexto global
-	Graph   Graph          `json:"graph"`   // Grafo de nós e arestas
-	Props   map[string]any `json:"props"`   // Propriedades compartilhadas/templates
+	Schema    string         `json:"schema"`    // Versão do schema (ex: "flowkit/1.0")
+	Bot       Bot            `json:"bot"`       // Informações do bot
+	Version   Version        `json:"version"`   // Versão do fluxo
+	Entries   []flow.Entry   `json:"entries"`   // Pontos de entrada do fluxo
+	Variables Variables      `json:"variables"` // Variáveis do bot (context, state, global)
+	Graph     Graph          `json:"graph"`     // Grafo de nós e arestas
+	Props     map[string]any `json:"props"`     // Propriedades compartilhadas/templates
 }
 
-// Profile contém configurações de perfil e contexto global
-type Profile struct {
-	Variables ProfileVariables `json:"variables"` // Estrutura de variáveis do perfil
-}
-
-// ProfileVariables define a estrutura de variáveis do perfil
-type ProfileVariables struct {
-	Context map[string]ProfileVariable `json:"context"` // Definições de variáveis de contexto
-	Profile map[string]any             `json:"profile"` // Valores atuais das variáveis do perfil
-}
-
-// ProfileVariable define uma variável do perfil/contexto
-type ProfileVariable struct {
-	Type     string `json:"type"`               // Tipo da variável (string, int, bool, etc.)
-	Default  string `json:"default,omitempty"`  // Valor padrão
-	Persist  bool   `json:"persist,omitempty"`  // Se deve persistir entre sessões
-	Required bool   `json:"required,omitempty"` // Se é obrigatória
+// Variables contém as variáveis disponíveis no bot
+type Variables struct {
+	Context []string       `json:"context"` // Keys temporárias (sessão) - {{context.session_id}}
+	State   []string       `json:"state"`   // Keys permanentes (usuário) - {{state.user_name}}
+	Global  map[string]any `json:"global"`  // Valores compartilhados (bot) - {{global.counter}}
 }
 
 // Bot contém metadados do bot

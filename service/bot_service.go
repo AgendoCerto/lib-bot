@@ -72,19 +72,10 @@ func (sbs *BotService) CreateBot(ctx context.Context, botID, name, adapterName s
 				Target: flow.ID("start"),
 			},
 		},
-		Profile: io.Profile{
-			Variables: io.ProfileVariables{
-				Context: map[string]io.ProfileVariable{
-					"user_name": {
-						Type:     "string",
-						Default:  "",
-						Required: false,
-					},
-				},
-				Profile: map[string]any{
-					"user_name": "",
-				},
-			},
+		Variables: io.Variables{
+			Context: []string{},            // Keys temporárias (sessão)
+			State:   []string{"user_name"}, // Keys permanentes (usuário)
+			Global:  map[string]any{},      // Valores compartilhados (bot)
 		},
 		Graph: io.Graph{
 			Nodes: []flow.Node{

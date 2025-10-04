@@ -84,34 +84,21 @@ func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, 
 		"context.captured_at":  true,
 	}
 
-	// Adiciona variáveis do profile se disponível
+	// Adiciona variáveis do bot se disponível
 	if s.designDoc != nil {
-		// Variáveis do profile.variables.context (definições) - apenas context. e profile.
-		for key, profileVar := range s.designDoc.Profile.Variables.Context {
-			if profileVar.Persist {
-				// Variáveis persistentes vão para profile scope
-				availableKeys["profile."+key] = true
-			} else {
-				// Variáveis temporárias vão para context scope
-				availableKeys["context."+key] = true
-			}
+		// Context variables (array de strings - keys temporárias)
+		for _, key := range s.designDoc.Variables.Context {
+			availableKeys["context."+key] = true
 		}
 
-		// Variáveis do profile.variables.profile (valores atuais)
-		if s.designDoc.Profile.Variables.Profile != nil {
-			for key := range s.designDoc.Profile.Variables.Profile {
-				// Verificar se a variável é persistente baseado na definição
-				if profileVar, hasDefinition := s.designDoc.Profile.Variables.Context[key]; hasDefinition {
-					if profileVar.Persist {
-						availableKeys["profile."+key] = true
-					} else {
-						availableKeys["context."+key] = true
-					}
-				} else {
-					// Se não há definição, assume context por padrão
-					availableKeys["context."+key] = true
-				}
-			}
+		// State variables (array de strings - keys permanentes)
+		for _, key := range s.designDoc.Variables.State {
+			availableKeys["state."+key] = true
+		}
+
+		// Global variables (objeto chave-valor - valores reais)
+		for key := range s.designDoc.Variables.Global {
+			availableKeys["global."+key] = true
 		}
 	}
 
@@ -121,8 +108,10 @@ func (s LiquidStep) Check(spec component.ComponentSpec, _ adapter.Capabilities, 
 		if key != "" {
 			if scope == "context" {
 				availableKeys["context."+key] = true
-			} else if scope == "profile" {
-				availableKeys["profile."+key] = true
+			} else if scope == "state" {
+				availableKeys["state."+key] = true
+			} else if scope == "global" {
+				availableKeys["global."+key] = true
 			}
 		}
 	}

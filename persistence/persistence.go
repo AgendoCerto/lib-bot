@@ -58,11 +58,11 @@ func (v DefaultValidator) ValidateConfig(config Config) []ValidationIssue {
 	}
 
 	// Validate scope
-	if config.Scope != ScopeContext && config.Scope != ScopeProfile {
+	if config.Scope != ScopeContext && config.Scope != ScopeState && config.Scope != ScopeGlobal {
 		issues = append(issues, ValidationIssue{
 			Code:     "persistence_invalid_scope",
 			Severity: "error",
-			Message:  "Scope must be 'context' or 'profile'",
+			Message:  "Scope must be 'context', 'state', or 'global'",
 			Path:     "persistence.scope",
 		})
 	}
@@ -141,11 +141,11 @@ func (v DefaultValidator) ValidateKeyReference(key string, scope Scope) Validati
 		}
 	}
 
-	if scope != ScopeContext && scope != ScopeProfile {
+	if scope != ScopeContext && scope != ScopeState && scope != ScopeGlobal {
 		return ValidationIssue{
 			Code:     "invalid_scope_reference",
 			Severity: "error",
-			Message:  "Invalid scope in reference",
+			Message:  "Invalid scope in reference (must be context, state, or global)",
 		}
 	}
 

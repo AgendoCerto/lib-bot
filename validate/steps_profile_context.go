@@ -1,38 +1,36 @@
 package validate
 
 import (
-	"strings"
-
 	"github.com/AgendoCerto/lib-bot/io"
 )
 
-// ProfileContextStep valida a configuração de contexto do profile
+// ProfileContextStep valida a configuração de variáveis do bot
 type ProfileContextStep struct{}
 
-// NewProfileContextStep cria novo validador de contexto do profile
+// NewProfileContextStep cria novo validador de variáveis do bot
 func NewProfileContextStep() *ProfileContextStep {
 	return &ProfileContextStep{}
 }
 
-// ValidateDesign valida o contexto do profile no design
+// ValidateDesign valida as variáveis do bot no design
 func (v *ProfileContextStep) ValidateDesign(design io.DesignDoc) []Issue {
 	var issues []Issue
 
-	// Verificar se há profile definido
-	if len(design.Profile.Variables.Context) == 0 && len(design.Profile.Variables.Profile) == 0 {
-		return issues // Profile vazio é válido
+	// Verificar se há variables definido
+	if len(design.Variables.Context) == 0 && len(design.Variables.State) == 0 && len(design.Variables.Global) == 0 {
+		return issues // Variables vazio é válido
 	}
 
-	// Validar cada variável definida no contexto
-	for varName, profileVar := range design.Profile.Variables.Context {
-		path := "profile.variables.context." + varName
+	// Validar context (array de strings)
+	for _, varName := range design.Variables.Context {
+		path := "variables.context[" + varName + "]"
 
 		// Validar nome da variável
 		if varName == "" {
 			issues = append(issues, Issue{
-				Code:     "profile_empty_variable_name",
+				Code:     "variables_empty_context_name",
 				Severity: "error",
-				Msg:      "Variable name cannot be empty",
+				Msg:      "Context variable name cannot be empty",
 				Path:     path,
 			})
 			continue
@@ -41,69 +39,63 @@ func (v *ProfileContextStep) ValidateDesign(design io.DesignDoc) []Issue {
 		// Validar caracteres válidos no nome da variável
 		if !isValidVariableName(varName) {
 			issues = append(issues, Issue{
-				Code:     "profile_invalid_variable_name",
+				Code:     "variables_invalid_context_name",
 				Severity: "error",
 				Msg:      "Variable name must contain only letters, numbers, and underscore",
 				Path:     path,
 			})
 		}
+	}
 
-		// Validar tipo da variável
-		if profileVar.Type == "" {
+	// Validar state (array de strings)
+	for _, varName := range design.Variables.State {
+		path := "variables.state[" + varName + "]"
+
+		// Validar nome da variável
+		if varName == "" {
 			issues = append(issues, Issue{
-				Code:     "profile_missing_variable_type",
+				Code:     "variables_empty_state_name",
 				Severity: "error",
-				Msg:      "Variable type is required",
-				Path:     path + ".type",
+				Msg:      "State variable name cannot be empty",
+				Path:     path,
 			})
-		} else if !isValidVariableType(profileVar.Type) {
-			issues = append(issues, Issue{
-				Code:     "profile_invalid_variable_type",
-				Severity: "error",
-				Msg:      "Invalid variable type: " + profileVar.Type + ". Valid types: string, number, int, float, boolean, bool",
-				Path:     path + ".type",
-			})
+			continue
 		}
 
-		// Validar valor default se especificado
-		if profileVar.Default != "" {
-			if !isValidDefaultForType(profileVar.Default, profileVar.Type) {
-				issues = append(issues, Issue{
-					Code:     "profile_invalid_default_value",
-					Severity: "warning",
-					Msg:      "Default value '" + profileVar.Default + "' may not be compatible with type '" + profileVar.Type + "'",
-					Path:     path + ".default",
-				})
-			}
-		}
-
-		// Validar se variáveis obrigatórias têm valor default ou valor atual
-		if profileVar.Required {
-			hasDefault := profileVar.Default != ""
-			hasCurrentValue := design.Profile.Variables.Profile != nil && design.Profile.Variables.Profile[varName] != nil
-
-			if !hasDefault && !hasCurrentValue {
-				issues = append(issues, Issue{
-					Code:     "profile_required_without_value",
-					Severity: "warning",
-					Msg:      "Required variable should have a default value or current value in profile.variables.profile",
-					Path:     path,
-				})
-			}
+		// Validar caracteres válidos no nome da variável
+		if !isValidVariableName(varName) {
+			issues = append(issues, Issue{
+				Code:     "variables_invalid_state_name",
+				Severity: "error",
+				Msg:      "Variable name must contain only letters, numbers, and underscore",
+				Path:     path,
+			})
 		}
 	}
 
-	// Validar consistência entre profile.variables.profile e profile.variables.context
-	if design.Profile.Variables.Profile != nil {
-		for varName := range design.Profile.Variables.Profile {
-			if _, hasDefinition := design.Profile.Variables.Context[varName]; !hasDefinition {
-				issues = append(issues, Issue{
-					Code:     "profile_variable_without_definition",
-					Severity: "warning",
-					Msg:      "Variable '" + varName + "' has value but no definition in profile.variables.context",
-					Path:     "profile.variables.profile." + varName,
-				})
-			}
+	// Validar global (objeto chave-valor)
+	for varName := range design.Variables.Global {
+		path := "variables.global." + varName
+
+		// Validar nome da variável
+		if varName == "" {
+			issues = append(issues, Issue{
+				Code:     "variables_empty_global_name",
+				Severity: "error",
+				Msg:      "Global variable name cannot be empty",
+				Path:     path,
+			})
+			continue
+		}
+
+		// Validar caracteres válidos no nome da variável
+		if !isValidVariableName(varName) {
+			issues = append(issues, Issue{
+				Code:     "variables_invalid_global_name",
+				Severity: "error",
+				Msg:      "Variable name must contain only letters, numbers, and underscore",
+				Path:     path,
+			})
 		}
 	}
 
@@ -129,37 +121,4 @@ func isValidVariableName(name string) bool {
 	}
 
 	return true
-}
-
-// isValidVariableType verifica se o tipo da variável é válido
-func isValidVariableType(varType string) bool {
-	validTypes := []string{
-		"string", "str",
-		"number", "num", "int", "integer", "float", "double",
-		"boolean", "bool",
-	}
-
-	for _, valid := range validTypes {
-		if strings.ToLower(varType) == valid {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isValidDefaultForType verifica se o valor default é compatível com o tipo
-func isValidDefaultForType(defaultValue, varType string) bool {
-	switch strings.ToLower(varType) {
-	case "boolean", "bool":
-		return strings.ToLower(defaultValue) == "true" || strings.ToLower(defaultValue) == "false"
-	case "number", "num", "int", "integer", "float", "double":
-		// Para simplificar, aceita qualquer valor não-vazio para números
-		// Em uma implementação mais robusta, poderia fazer parsing
-		return defaultValue != ""
-	case "string", "str":
-		return true // Qualquer valor é válido para string
-	default:
-		return true // Para tipos desconhecidos, aceita
-	}
 }

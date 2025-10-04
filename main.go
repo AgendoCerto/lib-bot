@@ -90,7 +90,8 @@ type ValidationSummary struct {
 // PersistenceInfo contém informações sobre persistência no design
 type PersistenceInfo struct {
 	ContextKeys    []string `json:"context_keys,omitempty"`
-	ProfileKeys    []string `json:"profile_keys,omitempty"`
+	StateKeys      []string `json:"state_keys,omitempty"`
+	GlobalKeys     []string `json:"global_keys,omitempty"`
 	HasPersistence bool     `json:"has_persistence"`
 }
 
@@ -238,12 +239,15 @@ func countBySeverity(issues []validate.Issue, severity string) int {
 func extractPersistenceInfo(design io.DesignDoc) PersistenceInfo {
 	info := PersistenceInfo{
 		ContextKeys: make([]string, 0),
-		ProfileKeys: make([]string, 0),
+		StateKeys:   make([]string, 0),
+		GlobalKeys:  make([]string, 0),
 	}
 
-	// Coleta keys do profile.variables.context
-	for key := range design.Profile.Variables.Context {
-		info.ContextKeys = append(info.ContextKeys, key)
+	// Coleta keys das variables
+	info.ContextKeys = append(info.ContextKeys, design.Variables.Context...)
+	info.StateKeys = append(info.StateKeys, design.Variables.State...)
+	for key := range design.Variables.Global {
+		info.GlobalKeys = append(info.GlobalKeys, key)
 	}
 
 	// Analisa props para encontrar configurações de persistência
@@ -256,8 +260,10 @@ func extractPersistenceInfo(design io.DesignDoc) PersistenceInfo {
 					switch persistenceConfig.Scope {
 					case "context":
 						info.ContextKeys = append(info.ContextKeys, key)
-					case "profile":
-						info.ProfileKeys = append(info.ProfileKeys, key)
+					case "state":
+						info.StateKeys = append(info.StateKeys, key)
+					case "global":
+						info.GlobalKeys = append(info.GlobalKeys, key)
 					}
 				}
 			}

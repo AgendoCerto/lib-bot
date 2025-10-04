@@ -5,8 +5,9 @@ package persistence
 type Scope string
 
 const (
-	ScopeContext Scope = "context" // Temporary flow data
-	ScopeProfile Scope = "profile" // Persistent user data
+	ScopeContext Scope = "context" // Temporary flow data (session-scoped)
+	ScopeState   Scope = "state"   // Persistent user data (user-scoped)
+	ScopeGlobal  Scope = "global"  // Global shared data (bot-scoped, shared across all users)
 )
 
 // SanitizationType defines predefined sanitization types.
@@ -54,7 +55,7 @@ type SanitizationConfig struct {
 // Config configures data persistence for a match.
 type Config struct {
 	Enabled      bool                `json:"enabled"`                // If persistence is enabled
-	Scope        Scope               `json:"scope"`                  // Where to persist: context or profile
+	Scope        Scope               `json:"scope"`                  // Where to persist: context, state, or global
 	Key          string              `json:"key"`                    // Storage key (e.g., "phone_number")
 	Sanitization *SanitizationConfig `json:"sanitization,omitempty"` // Sanitization configuration
 	Required     bool                `json:"required,omitempty"`     // If field is required
@@ -71,7 +72,8 @@ type MatchConfig struct {
 // Info contains information about available persistence keys in the flow.
 type Info struct {
 	ContextKeys []string `json:"contextKeys"` // Available keys in context
-	ProfileKeys []string `json:"profileKeys"` // Available keys in profile
+	StateKeys   []string `json:"stateKeys"`   // Available keys in state (persistent user data)
+	GlobalKeys  []string `json:"globalKeys"`  // Available keys in global (bot-wide shared data)
 }
 
 // ValidationIssue represents a validation problem.
