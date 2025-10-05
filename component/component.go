@@ -85,19 +85,6 @@ type ExperimentVariant struct {
 	TargetNode string `json:"target_node"` // Nó de destino para esta variante
 }
 
-// PersistenceWriteConfig configura escrita de dados em múltiplos escopos
-type PersistenceWriteConfig struct {
-	Enabled bool               `json:"enabled"`
-	Writes  []PersistenceWrite `json:"writes"` // Lista de escritas a realizar
-}
-
-// PersistenceWrite representa uma operação de escrita
-type PersistenceWrite struct {
-	Scope string `json:"scope"` // profile|context|session
-	Key   string `json:"key"`   // Nome da variável
-	From  string `json:"from"`  // Campo de origem (ex: "context.user_input")
-}
-
 // ComponentBehavior agrupa todos os behaviors de um componente
 // IMPORTANTE: behavior.validator substitui behavior.await
 // Quando validator.enabled=true, automaticamente aguarda resposta do usuário
@@ -105,12 +92,12 @@ type ComponentBehavior struct {
 	// REMOVIDO: Await - funcionalidade absorvida pelo Validator
 	// Use validator.enabled=true para aguardar resposta
 
-	Timeout     *TimeoutBehavior        `json:"timeout,omitempty"`     // Configuração de timeout (complementa validator)
-	Validation  *ValidationBehavior     `json:"validation,omitempty"`  // Configuração de validação (LEGADO - usar Validator)
-	Validator   *validator.Config       `json:"validator,omitempty"`   // Validator 2.0 (substitui Await + Validation)
-	Delay       *DelayBehavior          `json:"delay,omitempty"`       // Configuração de delays
-	Experiment  *ExperimentBehavior     `json:"experiment,omitempty"`  // A/B testing
-	Persistence *PersistenceWriteConfig `json:"persistence,omitempty"` // Persistência de dados
+	Timeout    *TimeoutBehavior    `json:"timeout,omitempty"`    // Configuração de timeout (complementa validator)
+	Validation *ValidationBehavior `json:"validation,omitempty"` // Configuração de validação (LEGADO - usar Validator)
+	Validator  *validator.Config   `json:"validator,omitempty"`  // Validator 2.0 (substitui Await + Validation)
+	Delay      *DelayBehavior      `json:"delay,omitempty"`      // Configuração de delays
+	Experiment *ExperimentBehavior `json:"experiment,omitempty"` // A/B testing
+	// REMOVIDO: Persistence - usar ComponentSpec.Persistence ao invés de behavior.persistence
 }
 
 // ComponentSpec é o modelo canônico de um componente (sem renderização final)
@@ -214,15 +201,8 @@ func ParseBehavior(props map[string]any, det liquid.Detector) (*ComponentBehavio
 		hasAnyBehavior = true
 	}
 
-	// Parse persistence behavior (novo formato com writes)
-	if persistenceRaw, ok := props["persistence"].(map[string]any); ok {
-		persistence, err := parsePersistenceWriteConfig(persistenceRaw)
-		if err != nil {
-			return nil, err
-		}
-		behavior.Persistence = persistence
-		hasAnyBehavior = true
-	}
+	// REMOVIDO: Parse persistence behavior - usar ParsePersistence() separadamente
+	// A persistência deve ser configurada via ComponentSpec.Persistence, não behavior.persistence
 
 	// Compatibilidade com formato antigo de fallback
 	if fallbackRaw, ok := props["fallback"].(map[string]any); ok {
@@ -560,33 +540,5 @@ func parseExperimentBehavior(raw map[string]any) (*ExperimentBehavior, error) {
 	return experiment, nil
 }
 
-// parsePersistenceWriteConfig converte map para PersistenceWriteConfig
-func parsePersistenceWriteConfig(raw map[string]any) (*PersistenceWriteConfig, error) {
-	config := &PersistenceWriteConfig{}
-
-	if enabled, ok := raw["enabled"].(bool); ok {
-		config.Enabled = enabled
-	}
-
-	if writesRaw, ok := raw["writes"].([]any); ok {
-		writes := make([]PersistenceWrite, 0, len(writesRaw))
-		for _, wRaw := range writesRaw {
-			if wMap, ok := wRaw.(map[string]any); ok {
-				write := PersistenceWrite{}
-				if scope, ok := wMap["scope"].(string); ok {
-					write.Scope = scope
-				}
-				if key, ok := wMap["key"].(string); ok {
-					write.Key = key
-				}
-				if from, ok := wMap["from"].(string); ok {
-					write.From = from
-				}
-				writes = append(writes, write)
-			}
-		}
-		config.Writes = writes
-	}
-
-	return config, nil
-}
+// REMOVIDO: parsePersistenceWriteConfig - sistema de persistence com writes foi descontinuado
+// Usar ParsePersistence() ao invés, que retorna *persistence.Config
